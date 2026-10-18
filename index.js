@@ -18,30 +18,43 @@ const assistantTools = [
   {
     functionDeclarations: [
       {
-        name: 'crear_tarea',
-        description: 'Crea una tarea en el Google Tasks oficial del usuario con título, categoría, fecha opcional y descripción/detalles opcionales.',
+        name: 'crear_lista',
+        description: 'Crea una nueva lista o cajón de tareas en Google Tasks.',
         parameters: {
           type: Type.OBJECT,
           properties: {
-            title: { type: Type.STRING, description: 'Título claro de la tarea' },
+            title: { type: Type.STRING, description: 'Nombre de la nueva lista de tareas' }
+          },
+          required: ['title']
+        }
+      },
+      {
+        name: 'crear_tarea',
+        description: 'Crea una tarea (o subtarea) en el Google Tasks oficial del usuario con título, categoría, fecha opcional y descripción opcional.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING, description: 'Título claro de la tarea o subtarea' },
             category: { type: Type.STRING, description: 'Nombre de la lista o categoría (ej: Pecera, Project OBSCURA, Uni, General)' },
-            description: { type: Type.STRING, description: 'Descripción, notas o detalles adicionales de la tarea' },
-            due_date: { type: Type.STRING, description: 'Fecha de vencimiento en formato YYYY-MM-DD (calculada a partir de hoy si dice "mañana", "el viernes", etc.)' }
+            description: { type: Type.STRING, description: 'Descripción, notas o detalles adicionales' },
+            due_date: { type: Type.STRING, description: 'Fecha de vencimiento en formato YYYY-MM-DD' },
+            parent_title: { type: Type.STRING, description: 'Si es una subtarea, nombre de la tarea principal dentro de la cual debe meterse' }
           },
           required: ['title', 'category']
         }
       },
       {
         name: 'editar_tarea',
-        description: 'Modifica una tarea existente en Google Tasks (cambia su título, añade o cambia su descripción/detalles, cambia la fecha o la marca como completada/hecha).',
+        description: 'Modifica una tarea existente en Google Tasks: cambia su título, descripción, fecha, la mueve a otra lista/cajón, la marca como completada (true) o la desmarca como pendiente (false).',
         parameters: {
           type: Type.OBJECT,
           properties: {
-            search_title: { type: Type.STRING, description: 'Nombre actual (o parte del nombre) de la tarea que se quiere buscar para editar' },
+            search_title: { type: Type.STRING, description: 'Nombre actual de la tarea que se quiere buscar para editar' },
             new_title: { type: Type.STRING, description: 'Nuevo título si se quiere renombrar' },
-            description: { type: Type.STRING, description: 'Nueva descripción o detalles para añadir a la tarea' },
+            new_category: { type: Type.STRING, description: 'Nombre de la nueva lista/cajón si el usuario pide mover la tarea de una lista a otra' },
+            description: { type: Type.STRING, description: 'Nueva descripción o detalles' },
             due_date: { type: Type.STRING, description: 'Nueva fecha en formato YYYY-MM-DD' },
-            completed: { type: Type.BOOLEAN, description: 'Pon true si el usuario dice que ya ha completado o terminado esta tarea' }
+            completed: { type: Type.BOOLEAN, description: 'true para marcar como hecha/completada, false para desmarcarla y volver a ponerla como pendiente' }
           },
           required: ['search_title']
         }
@@ -52,7 +65,7 @@ const assistantTools = [
         parameters: {
           type: Type.OBJECT,
           properties: {
-            title: { type: Type.STRING, description: 'Nombre o palabras clave de la tarea que se quiere borrar' }
+            title: { type: Type.STRING, description: 'Nombre de la tarea que se quiere borrar' }
           },
           required: ['title']
         }
@@ -72,7 +85,7 @@ const assistantTools = [
       },
       {
         name: 'consultar_estado_dia',
-        description: 'Lee en tiempo real TODAS las listas y cajones de Google Tasks del usuario (incluyendo tareas completadas, pendientes, fechas y descripciones) y las comidas de hoy.',
+        description: 'Lee en tiempo real TODAS las listas, tareas y subtareas de Google Tasks del usuario (completadas y pendientes) y las comidas de hoy.',
         parameters: {
           type: Type.OBJECT,
           properties: {}
@@ -83,10 +96,24 @@ const assistantTools = [
 ];
 
 // ============================================================================
-// 2. LAS MANOS (Base de datos Supabase)
+// 2. LAS MANOS (Google Tasks + Supabase)
 // ============================================================================
 async function ejecutarHerramienta(nombre, args, userId) {
-  // 1. CREAR TAREA EN GOOGLE TASKS
+  // 0. CREAR LISTA NUEVA EN GOOGLE TASKS
+  if (nombre === 'crear_lista') {
+    try {
+      const url = new URL(process.env.GOOGLE_SCRIPT_URL);
+      url.searchParams.append('accion', 'crear_lista');
+      url.searchParams.append('title', args.title);
+
+      const res = await fetch(url.toString());
+      return await res.json();
+    } catch (err) {
+      return { error: "No se pudo crear la lista en Google Tasks" };
+    }
+  }
+
+  // 1. CREAR TAREA (O SUBTAREA) EN GOOGLE TASKS
   if (nombre === 'crear_tarea') {
     try {
       const url = new URL(process.env.GOOGLE_SCRIPT_URL);
@@ -95,6 +122,7 @@ async function ejecutarHerramienta(nombre, args, userId) {
       url.searchParams.append('category', args.category || 'General');
       if (args.description) url.searchParams.append('description', args.description);
       if (args.due_date) url.searchParams.append('due_date', args.due_date);
+      if (args.parent_title) url.searchParams.append('parent_title', args.parent_title);
 
       const respuestaGoogle = await fetch(url.toString());
       const datosGoogle = await respuestaGoogle.json();
@@ -111,16 +139,17 @@ async function ejecutarHerramienta(nombre, args, userId) {
     }
   }
 
-  // 2. EDITAR O COMPLETAR TAREA EN GOOGLE TASKS
+  // 2. EDITAR, MOVER, COMPLETAR O DESMARCAR TAREA EN GOOGLE TASKS
   if (nombre === 'editar_tarea') {
     try {
       const url = new URL(process.env.GOOGLE_SCRIPT_URL);
       url.searchParams.append('accion', 'editar_tarea');
       url.searchParams.append('search_title', args.search_title);
       if (args.new_title) url.searchParams.append('new_title', args.new_title);
+      if (args.new_category) url.searchParams.append('new_category', args.new_category);
       if (args.description) url.searchParams.append('description', args.description);
       if (args.due_date) url.searchParams.append('due_date', args.due_date);
-      if (args.completed) url.searchParams.append('completed', 'true');
+      if (args.completed !== undefined) url.searchParams.append('completed', String(args.completed));
 
       const res = await fetch(url.toString());
       const datos = await res.json();
