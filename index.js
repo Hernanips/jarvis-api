@@ -257,6 +257,11 @@ async function ejecutarHerramienta(nombre, args, userId) {
 // ============================================================================
 app.post('/api/assistant', async (req, res) => {
   try {
+    const clientPin = req.headers['x-jarvis-pin'];
+    if (process.env.JARVIS_PIN && clientPin !== process.env.JARVIS_PIN) {
+      return res.status(401).json({ error: '🔒 Acceso denegado. Clave incorrecta.' });
+    }
+
     const { message, history = [], userId = 'usuario_principal' } = req.body;
 
     const systemInstruction = `
