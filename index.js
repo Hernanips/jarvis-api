@@ -18,16 +18,15 @@ const assistantTools = [
   {
     functionDeclarations: [
       {
-        name: 'crear_tarea',
-        description: 'Guarda una nueva tarea pendiente de la universidad, proyectos o personal.',
+        name: 'crear_tarea_google',
+        description: 'Crea una tarea oficial en Google Tasks del usuario.',
         parameters: {
           type: Type.OBJECT,
           properties: {
-            title: { type: Type.STRING, description: 'Nombre claro de la tarea (ej: Terminar lámina de color)' },
-            category: { type: Type.STRING, description: 'Categoría: uni, proyecto o personal' },
-            due_date: { type: Type.STRING, description: 'Fecha límite o día (ej: mañana, viernes, 2026-10-16)' }
+            title: { type: Type.STRING, description: 'Título de la tarea' },
+            due_date: { type: Type.STRING, description: 'Fecha de vencimiento en formato YYYY-MM-DD si se conoce' }
           },
-          required: ['title', 'category']
+          required: ['title']
         }
       },
       {
@@ -59,55 +58,72 @@ const assistantTools = [
 // 2. LAS MANOS (Base de datos Supabase)
 // ============================================================================
 async function ejecutarHerramienta(nombre, args, userId) {
+  // 1. CREAR TAREA -> Va directo a tu Google Tasks oficial (y copia en Supabase)
   if (nombre === 'crear_tarea') {
-    const { data, error } = await supabase
-      .from('tasks')
-      .insert([{ user_id: userId, title: args.title, category: args.category, due_date: args.due_date }])
-      .select();
-      
-    // 🔍 AÑADE ESTO AQUÍ
-    if (error) console.error("❌ Error en Supabase (tasks):", error);
-    else console.log("✅ Guardado en Supabase (tasks):", data);
+    try {
+      // Llamamos al puente de Google Apps Script
+      const respuestaGoogle = await fetch(process.env.GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accion: 'crear_tarea',
+          title: args.title,
+          category: args.category || 'general'
+        })
+      });
+      const datosGoogle = await respuestaGoogle.json();
+      console.log("✅ Tarea enviada a Google Tasks:", datosGoogle);
 
-    return error ? { error: error.message } : { ok: true, tarea_creada: data[0] };
+      // Opcional: la seguimos guardando en Supabase por si quieres histórico
+      await supabase
+        .from('tasks')
+        .insert([{ user_id: userId, title: args.title, category: args.category, due_date: args.due_date }]);
+
+      return { ok: true, mensaje: "Tarea creada en Google Tasks correctamente", google_id: datosGoogle.id };
+    } catch (err) {
+      console.error("❌ Error conectando con Google Tasks:", err);
+      return { error: "No se pudo sincronizar con Google Tasks" };
+    }
   }
 
+  // 2. REGISTRAR COMIDA -> Se queda en Supabase (donde Google no llega)
   if (nombre === 'registrar_comida') {
     const { data, error } = await supabase
       .from('meals')
       .insert([{ user_id: userId, description: args.description, calories: args.calories, protein_g: args.protein_g }])
       .select();
-      
-    // 🔍 Y AÑADE ESTO AQUÍ TAMBIÉN
+
     if (error) console.error("❌ Error en Supabase (meals):", error);
     else console.log("✅ Guardado en Supabase (meals):", data);
 
     return error ? { error: error.message } : { ok: true, comida_registrada: data[0] };
   }
 
+  // 3. CONSULTAR ESTADO DEL DÍA -> Une las tareas de Google Tasks + Calorías de Supabase
   if (nombre === 'consultar_estado_dia') {
-    const { data: tasks } = await supabase
-      .from('tasks')
-      .select('title, category, due_date')
-      .eq('user_id', userId)
-      .eq('completed', false);
+    // A) Leemos tus tareas reales de Google Tasks
+    let tareasGoogle = [];
+    try {
+      const resG = await fetch(process.env.GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accion: 'leer_tareas' })
+      });
+      const dataG = await resG.json();
+      tareasGoogle = dataG.tareas || [];
+    } catch (e) {
+      console.error("❌ Error leyendo Google Tasks:", e);
+    }
 
-    const hoyInicio = new Date();
-    hoyInicio.setHours(0, 0, 0, 0);
-
-    const { data: meals } = await supabase
+    // B) Leemos tus comidas de hoy desde Supabase
+    const { data: comidas } = await supabase
       .from('meals')
       .select('description, calories, protein_g')
-      .eq('user_id', userId)
-      .gte('created_at', hoyInicio.toISOString());
-
-    const totalKcal = (meals || []).reduce((sum, m) => sum + m.calories, 0);
-    const totalProt = (meals || []).reduce((sum, m) => sum + m.protein_g, 0);
+      .eq('user_id', userId);
 
     return {
-      tareas_pendientes: tasks || [],
-      comidas_hoy: meals || [],
-      resumen_nutricional_hoy: { calorias_totales: totalKcal, proteina_total_g: totalProt }
+      tareas_pendientes_google_tasks: tareasGoogle,
+      comidas_registradas_hoy: comidas || []
     };
   }
 }
