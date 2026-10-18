@@ -19,15 +19,42 @@ const assistantTools = [
     functionDeclarations: [
       {
         name: 'crear_tarea',
-        description: 'Crea una tarea directamente en el Google Tasks oficial del usuario. Úsala SIEMPRE que el usuario pida apuntar, recordar o añadir una tarea.',
+        description: 'Crea una tarea en el Google Tasks oficial del usuario con título, categoría, fecha opcional y descripción/detalles opcionales.',
         parameters: {
           type: Type.OBJECT,
           properties: {
             title: { type: Type.STRING, description: 'Título claro de la tarea' },
             category: { type: Type.STRING, description: 'Nombre de la lista o categoría (ej: Pecera, Project OBSCURA, Uni, General)' },
-            due_date: { type: Type.STRING, description: 'Fecha en formato YYYY-MM-DD (si se menciona)' }
+            description: { type: Type.STRING, description: 'Descripción, notas o detalles adicionales de la tarea' },
+            due_date: { type: Type.STRING, description: 'Fecha de vencimiento en formato YYYY-MM-DD (calculada a partir de hoy si dice "mañana", "el viernes", etc.)' }
           },
           required: ['title', 'category']
+        }
+      },
+      {
+        name: 'editar_tarea',
+        description: 'Modifica una tarea existente en Google Tasks (cambia su título, añade o cambia su descripción/detalles, cambia la fecha o la marca como completada/hecha).',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            search_title: { type: Type.STRING, description: 'Nombre actual (o parte del nombre) de la tarea que se quiere buscar para editar' },
+            new_title: { type: Type.STRING, description: 'Nuevo título si se quiere renombrar' },
+            description: { type: Type.STRING, description: 'Nueva descripción o detalles para añadir a la tarea' },
+            due_date: { type: Type.STRING, description: 'Nueva fecha en formato YYYY-MM-DD' },
+            completed: { type: Type.BOOLEAN, description: 'Pon true si el usuario dice que ya ha completado o terminado esta tarea' }
+          },
+          required: ['search_title']
+        }
+      },
+      {
+        name: 'borrar_tarea',
+        description: 'Elimina por completo una tarea de Google Tasks buscándola por su título.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING, description: 'Nombre o palabras clave de la tarea que se quiere borrar' }
+          },
+          required: ['title']
         }
       },
       {
@@ -45,7 +72,7 @@ const assistantTools = [
       },
       {
         name: 'consultar_estado_dia',
-        description: 'Lee en tiempo real TODAS las listas y cajones de Google Tasks del usuario (incluyendo tareas completadas hoy, pendientes, fechas programadas de la pecera, proyectos y uni) y las comidas de hoy.',
+        description: 'Lee en tiempo real TODAS las listas y cajones de Google Tasks del usuario (incluyendo tareas completadas, pendientes, fechas y descripciones) y las comidas de hoy.',
         parameters: {
           type: Type.OBJECT,
           properties: {}
@@ -66,13 +93,13 @@ async function ejecutarHerramienta(nombre, args, userId) {
       url.searchParams.append('accion', 'crear_tarea');
       url.searchParams.append('title', args.title);
       url.searchParams.append('category', args.category || 'General');
+      if (args.description) url.searchParams.append('description', args.description);
       if (args.due_date) url.searchParams.append('due_date', args.due_date);
 
       const respuestaGoogle = await fetch(url.toString());
       const datosGoogle = await respuestaGoogle.json();
-      console.log("✅ Respuesta de Google Tasks (Crear):", datosGoogle);
+      console.log("✅ Google Tasks (Crear):", datosGoogle);
 
-      // Guardamos copia en Supabase
       await supabase
         .from('tasks')
         .insert([{ user_id: userId, title: args.title, category: args.category, due_date: args.due_date }]);
@@ -84,20 +111,53 @@ async function ejecutarHerramienta(nombre, args, userId) {
     }
   }
 
-  // 2. REGISTRAR COMIDA EN SUPABASE
+  // 2. EDITAR O COMPLETAR TAREA EN GOOGLE TASKS
+  if (nombre === 'editar_tarea') {
+    try {
+      const url = new URL(process.env.GOOGLE_SCRIPT_URL);
+      url.searchParams.append('accion', 'editar_tarea');
+      url.searchParams.append('search_title', args.search_title);
+      if (args.new_title) url.searchParams.append('new_title', args.new_title);
+      if (args.description) url.searchParams.append('description', args.description);
+      if (args.due_date) url.searchParams.append('due_date', args.due_date);
+      if (args.completed) url.searchParams.append('completed', 'true');
+
+      const res = await fetch(url.toString());
+      const datos = await res.json();
+      console.log("✏️ Google Tasks (Editar):", datos);
+      return datos;
+    } catch (err) {
+      return { error: "No se pudo editar la tarea" };
+    }
+  }
+
+  // 3. BORRAR TAREA EN GOOGLE TASKS
+  if (nombre === 'borrar_tarea') {
+    try {
+      const url = new URL(process.env.GOOGLE_SCRIPT_URL);
+      url.searchParams.append('accion', 'borrar_tarea');
+      url.searchParams.append('title', args.title);
+
+      const res = await fetch(url.toString());
+      const datos = await res.json();
+      console.log("🗑️ Google Tasks (Borrar):", datos);
+      return datos;
+    } catch (err) {
+      return { error: "No se pudo borrar la tarea" };
+    }
+  }
+
+  // 4. REGISTRAR COMIDA EN SUPABASE
   if (nombre === 'registrar_comida') {
     const { data, error } = await supabase
       .from('meals')
       .insert([{ user_id: userId, description: args.description, calories: args.calories, protein_g: args.protein_g }])
       .select();
 
-    if (error) console.error("❌ Error en Supabase (meals):", error);
-    else console.log("✅ Guardado en Supabase (meals):", data);
-
     return error ? { error: error.message } : { ok: true, comida_registrada: data[0] };
   }
 
-  // 3. CONSULTAR GOOGLE TASKS + SUPABASE
+  // 5. CONSULTAR GOOGLE TASKS + SUPABASE
   if (nombre === 'consultar_estado_dia') {
     let tareasGoogle = {};
     try {
@@ -106,7 +166,6 @@ async function ejecutarHerramienta(nombre, args, userId) {
 
       const resG = await fetch(url.toString());
       const dataG = await resG.json();
-      console.log("📋 Tareas leídas de Google Tasks:", JSON.stringify(dataG));
       tareasGoogle = dataG.tareas || {};
     } catch (e) {
       console.error("❌ Error leyendo Google Tasks:", e);
