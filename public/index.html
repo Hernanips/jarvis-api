@@ -34,6 +34,7 @@
     <script>
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('userInput');
+        let historial = []; // <-- Memoria de la sesión actual
 
         userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') enviarMensaje();
@@ -43,7 +44,6 @@
             const text = userInput.value.trim();
             if (!text) return;
 
-            // Añadir mensaje del usuario a la pantalla
             chatBox.innerHTML += `<div class="message user">${text}</div>`;
             userInput.value = '';
             chatBox.scrollTop = chatBox.scrollHeight;
@@ -52,12 +52,18 @@
                 const res = await fetch('/api/assistant', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text })
+                    body: JSON.stringify({ message: text, history: historial }) // <-- Enviamos memoria
                 });
                 const data = await res.json();
+                const reply = data.reply || data.error;
 
-                // Añadir respuesta del asistente
-                chatBox.innerHTML += `<div class="message assistant">${data.reply || data.error}</div>`;
+                chatBox.innerHTML += `<div class="message assistant">${reply}</div>`;
+                
+                // Guardamos el intercambio en la memoria (últimos 10 mensajes)
+                historial.push({ role: 'user', parts: [{ text }] });
+                historial.push({ role: 'model', parts: [{ text: reply }] });
+                if (historial.length > 10) historial = historial.slice(-10);
+
             } catch (err) {
                 chatBox.innerHTML += `<div class="message assistant" style="color: #f87171;">Error de conexión con el servidor.</div>`;
             }

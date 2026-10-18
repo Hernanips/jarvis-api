@@ -189,19 +189,22 @@ async function ejecutarHerramienta(nombre, args, userId) {
 // ============================================================================
 app.post('/api/assistant', async (req, res) => {
   try {
-    const { message, userId = 'user_admin' } = req.body;
+    const { message, history = [], userId = 'usuario_principal' } = req.body;
 
     const systemInstruction = `
       Eres el asistente y tutor estricto del usuario (estilo Jarvis / mentor exigente).
       Hoy es ${new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
       - Si el usuario menciona algo que ha comido, estima tú mismo las calorías y proteínas reales y llama a 'registrar_comida'.
-      - Si menciona deberes de la universidad, dibujos o proyectos que tiene que hacer, llama a 'crear_tarea'.
+      - Si pide explícitamente apuntar o crear una tarea, llama a 'crear_tarea'.
+      - Si pide modificar, añadir descripción, cambiar fecha o marcar como hecha una tarea, llama a 'editar_tarea'.
+      - Si pide borrar o eliminar una tarea (incluso diciendo "bórrala" refiriéndose a la anterior), llama a 'borrar_tarea'.
       - Si pregunta qué tiene pendiente o cómo lleva el día, llama a 'consultar_estado_dia'.
       - Sé directo, breve (2-4 frases máximo, pensado para ser leído o escuchado en el móvil) y exigente con las tareas pendientes.
     `;
 
-    // Historial de contenidos de la petición
+    // Historial de contenidos de la petición (AQUÍ ESTABA EL TRUCO: añadimos ...history)
     let contents = [
+      ...history,
       { role: 'user', parts: [{ text: message }] }
     ];
 
@@ -213,10 +216,8 @@ app.post('/api/assistant', async (req, res) => {
 
     // Bucle de Tool Calling
     while (response.functionCalls && response.functionCalls.length > 0) {
-      // 1. Añadimos la respuesta del modelo que contiene la petición de función
       contents.push(response.candidates[0].content);
 
-      // 2. Ejecutamos cada herramienta y guardamos los resultados en el formato exacto de partes
       const functionResponseParts = [];
       for (const call of response.functionCalls) {
         console.log(`🔧 Ejecutando herramienta: ${call.name}`, call.args);
@@ -230,10 +231,8 @@ app.post('/api/assistant', async (req, res) => {
         });
       }
 
-      // 3. Añadimos el bloque de respuesta de la función al historial
       contents.push({ role: 'user', parts: functionResponseParts });
 
-      // 4. Volvemos a llamar al modelo para que genere la respuesta final en texto
       response = await ai.models.generateContent({
         model: 'gemini-3.5-flash-lite',
         contents,
