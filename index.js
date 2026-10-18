@@ -29,6 +29,40 @@ const assistantTools = [
         }
       },
       {
+        name: 'editar_lista',
+        description: 'Cambia el nombre de una lista o cajón de tareas existente en Google Tasks.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            search_title: { type: Type.STRING, description: 'Nombre actual de la lista que se quiere renombrar' },
+            new_title: { type: Type.STRING, description: 'Nuevo nombre para la lista' }
+          },
+          required: ['search_title', 'new_title']
+        }
+      },
+      {
+        name: 'borrar_lista',
+        description: 'Elimina por completo una lista o cajón de tareas de Google Tasks.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING, description: 'Nombre de la lista que se quiere eliminar' }
+          },
+          required: ['title']
+        }
+      },
+      {
+        name: 'limpiar_completadas',
+        description: 'Limpia u oculta todas las tareas ya completadas/tachadas de una lista de Google Tasks.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            category: { type: Type.STRING, description: 'Nombre de la lista a limpiar' }
+          },
+          required: ['category']
+        }
+      },
+      {
         name: 'crear_tarea',
         description: 'Crea una tarea (o subtarea) en el Google Tasks oficial del usuario con título, categoría, fecha opcional y descripción opcional.',
         parameters: {
@@ -50,7 +84,7 @@ const assistantTools = [
           type: Type.OBJECT,
           properties: {
             search_title: { type: Type.STRING, description: 'Nombre actual de la tarea que se quiere buscar para editar' },
-            new_title: { type: Type.STRING, description: 'Nuevo título si se quiere renombrar' },
+            new_title: { type: Type.STRING, description: 'Nuevo título si se quiere renombrar la tarea' },
             new_category: { type: Type.STRING, description: 'Nombre de la nueva lista/cajón si el usuario pide mover la tarea de una lista a otra' },
             description: { type: Type.STRING, description: 'Nueva descripción o detalles' },
             due_date: { type: Type.STRING, description: 'Nueva fecha en formato YYYY-MM-DD' },
@@ -61,7 +95,7 @@ const assistantTools = [
       },
       {
         name: 'borrar_tarea',
-        description: 'Elimina por completo una tarea de Google Tasks buscándola por su título.',
+        description: 'Elimina por completo una tarea individual de Google Tasks buscándola por su título.',
         parameters: {
           type: Type.OBJECT,
           properties: {
@@ -99,21 +133,24 @@ const assistantTools = [
 // 2. LAS MANOS (Google Tasks + Supabase)
 // ============================================================================
 async function ejecutarHerramienta(nombre, args, userId) {
-  // 0. CREAR LISTA NUEVA EN GOOGLE TASKS
-  if (nombre === 'crear_lista') {
+  // GESTIÓN DE LISTAS (Crear, Renombrar, Borrar, Limpiar)
+  if (['crear_lista', 'editar_lista', 'borrar_lista', 'limpiar_completadas'].includes(nombre)) {
     try {
       const url = new URL(process.env.GOOGLE_SCRIPT_URL);
-      url.searchParams.append('accion', 'crear_lista');
-      url.searchParams.append('title', args.title);
-
+      url.searchParams.append('accion', nombre);
+      for (const [key, val] of Object.entries(args)) {
+        if (val !== undefined) url.searchParams.append(key, String(val));
+      }
       const res = await fetch(url.toString());
-      return await res.json();
+      const datos = await res.json();
+      console.log(`📂 Google Tasks (${nombre}):`, datos);
+      return datos;
     } catch (err) {
-      return { error: "No se pudo crear la lista en Google Tasks" };
+      return { error: `No se pudo ejecutar ${nombre} en Google Tasks` };
     }
   }
 
-  // 1. CREAR TAREA (O SUBTAREA) EN GOOGLE TASKS
+  // CREAR TAREA (O SUBTAREA)
   if (nombre === 'crear_tarea') {
     try {
       const url = new URL(process.env.GOOGLE_SCRIPT_URL);
@@ -139,7 +176,7 @@ async function ejecutarHerramienta(nombre, args, userId) {
     }
   }
 
-  // 2. EDITAR, MOVER, COMPLETAR O DESMARCAR TAREA EN GOOGLE TASKS
+  // EDITAR, MOVER, COMPLETAR O DESMARCAR TAREA
   if (nombre === 'editar_tarea') {
     try {
       const url = new URL(process.env.GOOGLE_SCRIPT_URL);
@@ -160,7 +197,7 @@ async function ejecutarHerramienta(nombre, args, userId) {
     }
   }
 
-  // 3. BORRAR TAREA EN GOOGLE TASKS
+  // BORRAR TAREA
   if (nombre === 'borrar_tarea') {
     try {
       const url = new URL(process.env.GOOGLE_SCRIPT_URL);
@@ -176,7 +213,7 @@ async function ejecutarHerramienta(nombre, args, userId) {
     }
   }
 
-  // 4. REGISTRAR COMIDA EN SUPABASE
+  // REGISTRAR COMIDA EN SUPABASE
   if (nombre === 'registrar_comida') {
     const { data, error } = await supabase
       .from('meals')
@@ -186,7 +223,7 @@ async function ejecutarHerramienta(nombre, args, userId) {
     return error ? { error: error.message } : { ok: true, comida_registrada: data[0] };
   }
 
-  // 5. CONSULTAR GOOGLE TASKS + SUPABASE
+  // CONSULTAR GOOGLE TASKS + SUPABASE (Solo comidas de hoy)
   if (nombre === 'consultar_estado_dia') {
     let tareasGoogle = {};
     try {
@@ -200,13 +237,15 @@ async function ejecutarHerramienta(nombre, args, userId) {
       console.error("❌ Error leyendo Google Tasks:", e);
     }
 
+    const hoy = new Date().toISOString().split('T')[0];
     const { data: comidas } = await supabase
       .from('meals')
-      .select('description, calories, protein_g')
-      .eq('user_id', userId);
+      .select('description, calories, protein_g, created_at')
+      .eq('user_id', userId)
+      .gte('created_at', `${hoy}T00:00:00.000Z`);
 
     return {
-      hoy_es: new Date().toISOString().split('T')[0],
+      hoy_es: hoy,
       listas_google_tasks: tareasGoogle,
       comidas_registradas_hoy: comidas || []
     };
