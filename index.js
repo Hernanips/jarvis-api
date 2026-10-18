@@ -18,33 +18,34 @@ const assistantTools = [
   {
     functionDeclarations: [
       {
-        name: 'crear_tarea_google',
-        description: 'Crea una tarea oficial en Google Tasks del usuario.',
+        name: 'crear_tarea',
+        description: 'Crea una tarea directamente en el Google Tasks oficial del usuario. Úsala SIEMPRE que el usuario pida apuntar, recordar o añadir una tarea.',
         parameters: {
           type: Type.OBJECT,
           properties: {
-            title: { type: Type.STRING, description: 'Título de la tarea' },
-            due_date: { type: Type.STRING, description: 'Fecha de vencimiento en formato YYYY-MM-DD si se conoce' }
+            title: { type: Type.STRING, description: 'Título claro de la tarea' },
+            category: { type: Type.STRING, description: 'Nombre de la lista o categoría (ej: Pecera, Project OBSCURA, Uni, General)' },
+            due_date: { type: Type.STRING, description: 'Fecha en formato YYYY-MM-DD (si se menciona)' }
           },
-          required: ['title']
+          required: ['title', 'category']
         }
       },
       {
         name: 'registrar_comida',
-        description: 'Registra una comida calculando una estimación de calorías y proteínas.',
+        description: 'Registra una comida y sus macronutrientes en la base de datos de nutrición.',
         parameters: {
           type: Type.OBJECT,
           properties: {
-            description: { type: Type.STRING, description: 'Qué ha comido el usuario' },
-            calories: { type: Type.INTEGER, description: 'Calorías totales estimadas (kcal)' },
-            protein_g: { type: Type.INTEGER, description: 'Gramos de proteína estimados' }
+            description: { type: Type.STRING, description: 'Descripción de la comida' },
+            calories: { type: Type.NUMBER, description: 'Calorías estimadas' },
+            protein_g: { type: Type.NUMBER, description: 'Gramos de proteína estimados' }
           },
           required: ['description', 'calories', 'protein_g']
         }
       },
       {
         name: 'consultar_estado_dia',
-        description: 'Consulta las tareas pendientes y las calorías acumuladas hoy por el usuario.',
+        description: 'Lee en tiempo real TODAS las listas y cajones de Google Tasks del usuario (incluyendo tareas completadas hoy, pendientes, fechas programadas de la pecera, proyectos y uni) y las comidas de hoy.',
         parameters: {
           type: Type.OBJECT,
           properties: {}
@@ -58,35 +59,32 @@ const assistantTools = [
 // 2. LAS MANOS (Base de datos Supabase)
 // ============================================================================
 async function ejecutarHerramienta(nombre, args, userId) {
-  // 1. CREAR TAREA -> Va directo a tu Google Tasks oficial (y copia en Supabase)
+  // 1. CREAR TAREA EN GOOGLE TASKS
   if (nombre === 'crear_tarea') {
     try {
-      // Llamamos al puente de Google Apps Script
-      const respuestaGoogle = await fetch(process.env.GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accion: 'crear_tarea',
-          title: args.title,
-          category: args.category || 'general'
-        })
-      });
-      const datosGoogle = await respuestaGoogle.json();
-      console.log("✅ Tarea enviada a Google Tasks:", datosGoogle);
+      const url = new URL(process.env.GOOGLE_SCRIPT_URL);
+      url.searchParams.append('accion', 'crear_tarea');
+      url.searchParams.append('title', args.title);
+      url.searchParams.append('category', args.category || 'General');
+      if (args.due_date) url.searchParams.append('due_date', args.due_date);
 
-      // Opcional: la seguimos guardando en Supabase por si quieres histórico
+      const respuestaGoogle = await fetch(url.toString());
+      const datosGoogle = await respuestaGoogle.json();
+      console.log("✅ Respuesta de Google Tasks (Crear):", datosGoogle);
+
+      // Guardamos copia en Supabase
       await supabase
         .from('tasks')
         .insert([{ user_id: userId, title: args.title, category: args.category, due_date: args.due_date }]);
 
-      return { ok: true, mensaje: "Tarea creada en Google Tasks correctamente", google_id: datosGoogle.id };
+      return datosGoogle;
     } catch (err) {
       console.error("❌ Error conectando con Google Tasks:", err);
       return { error: "No se pudo sincronizar con Google Tasks" };
     }
   }
 
-  // 2. REGISTRAR COMIDA -> Se queda en Supabase (donde Google no llega)
+  // 2. REGISTRAR COMIDA EN SUPABASE
   if (nombre === 'registrar_comida') {
     const { data, error } = await supabase
       .from('meals')
@@ -99,30 +97,29 @@ async function ejecutarHerramienta(nombre, args, userId) {
     return error ? { error: error.message } : { ok: true, comida_registrada: data[0] };
   }
 
-  // 3. CONSULTAR ESTADO DEL DÍA -> Une las tareas de Google Tasks + Calorías de Supabase
+  // 3. CONSULTAR GOOGLE TASKS + SUPABASE
   if (nombre === 'consultar_estado_dia') {
-    // A) Leemos tus tareas reales de Google Tasks
-    let tareasGoogle = [];
+    let tareasGoogle = {};
     try {
-      const resG = await fetch(process.env.GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accion: 'leer_tareas' })
-      });
+      const url = new URL(process.env.GOOGLE_SCRIPT_URL);
+      url.searchParams.append('accion', 'leer_tareas');
+
+      const resG = await fetch(url.toString());
       const dataG = await resG.json();
-      tareasGoogle = dataG.tareas || [];
+      console.log("📋 Tareas leídas de Google Tasks:", JSON.stringify(dataG));
+      tareasGoogle = dataG.tareas || {};
     } catch (e) {
       console.error("❌ Error leyendo Google Tasks:", e);
     }
 
-    // B) Leemos tus comidas de hoy desde Supabase
     const { data: comidas } = await supabase
       .from('meals')
       .select('description, calories, protein_g')
       .eq('user_id', userId);
 
     return {
-      tareas_pendientes_google_tasks: tareasGoogle,
+      hoy_es: new Date().toISOString().split('T')[0],
+      listas_google_tasks: tareasGoogle,
       comidas_registradas_hoy: comidas || []
     };
   }
