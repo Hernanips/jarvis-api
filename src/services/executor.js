@@ -6,6 +6,7 @@ export async function ejecutarHerramienta(nombre, args, userId) {
   // 1. ACCIONES DIRECTAS EN GOOGLE APPS SCRIPT (Listas de Tasks y Eventos de Calendar)
   const accionesDirectas = [
     'crear_lista', 'editar_lista', 'borrar_lista', 'limpiar_completadas',
+    'crear_calendario', 'editar_calendario', 'borrar_calendario',
     'crear_evento', 'editar_evento', 'borrar_evento', 'consultar_calendario',
     'editar_tarea', 'borrar_tarea'
   ];

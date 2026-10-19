@@ -3,30 +3,73 @@ import { Type } from '@google/genai';
 export const assistantTools = [
   {
     functionDeclarations: [
-      // --- HERRAMIENTAS DE GOOGLE CALENDAR ---
+      // --- GESTIÓN DE CALENDARIOS (Cajones de Google Calendar) ---
+      {
+        name: 'crear_calendario',
+        description: 'Crea un nuevo calendario secundario en Google Calendar (ej: Deporte, Exámenes, Cumpleaños).',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING, description: 'Nombre del nuevo calendario' },
+            description: { type: Type.STRING, description: 'Descripción opcional del calendario' }
+          },
+          required: ['title']
+        }
+      },
+      {
+        name: 'editar_calendario',
+        description: 'Cambia el nombre o la descripción de un calendario secundario existente en Google Calendar.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            search_title: { type: Type.STRING, description: 'Nombre actual del calendario a modificar' },
+            new_title: { type: Type.STRING, description: 'Nuevo nombre para el calendario' },
+            description: { type: Type.STRING, description: 'Nueva descripción' }
+          },
+          required: ['search_title']
+        }
+      },
+      {
+        name: 'borrar_calendario',
+        description: 'Elimina por completo un calendario secundario de Google Calendar.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING, description: 'Nombre del calendario que se quiere eliminar' }
+          },
+          required: ['title']
+        }
+      },
+
+      // --- EVENTOS DE GOOGLE CALENDAR (Con soporte Multi-calendario y Recurrencias) ---
       {
         name: 'crear_evento',
-        description: 'Agenda un evento o bloque de tiempo con fecha y hora en Google Calendar. Úsala cuando el usuario mencione una hora específica (ej: "a las 17:00", "de 10 a 12"), citas, clases o entregas en el calendario.',
+        description: 'Agenda un evento (único o recurrente) en Google Calendar. Si es un cumpleaños, pon solo YYYY-MM-DD en start_time y recurrence_type="YEARLY". Si es de deporte o entreno, pon calendar_name="Deporte".',
         parameters: {
           type: Type.OBJECT,
           properties: {
             title: { type: Type.STRING, description: 'Título del evento' },
-            start_time: { type: Type.STRING, description: 'Fecha y hora de inicio en formato YYYY-MM-DDTHH:mm (o solo YYYY-MM-DD si es un evento de todo el día)' },
-            end_time: { type: Type.STRING, description: 'Fecha y hora de fin en formato YYYY-MM-DDTHH:mm (opcional, por defecto dura 1 hora)' },
+            calendar_name: { type: Type.STRING, description: 'Nombre del calendario donde guardarlo (ej: "Deporte", "Principal"). Si no especifica, déjalo vacío.' },
+            start_time: { type: Type.STRING, description: 'Inicio en formato YYYY-MM-DDTHH:mm (o solo YYYY-MM-DD si dura todo el día / cumpleaños)' },
+            end_time: { type: Type.STRING, description: 'Fin en formato YYYY-MM-DDTHH:mm (opcional)' },
             description: { type: Type.STRING, description: 'Descripción o notas del evento' },
-            location: { type: Type.STRING, description: 'Ubicación o lugar del evento' }
+            location: { type: Type.STRING, description: 'Ubicación o lugar' },
+            recurrence_type: { type: Type.STRING, description: 'Tipo de repetición si es recurrente: "DAILY" (diario), "WEEKLY" (semanal), "MONTHLY" (mensual) o "YEARLY" (anual, ideal para cumpleaños).' },
+            recurrence_interval: { type: Type.NUMBER, description: 'Intervalo de repetición (ej: 1 para cada semana/día, 2 para cada 2 días o cada 2 semanas).' },
+            days_of_week: { type: Type.STRING, description: 'Solo si recurrence_type es WEEKLY: días separados por comas en inglés (ej: "TUESDAY,FRIDAY" para martes y viernes).' }
           },
           required: ['title', 'start_time']
         }
       },
       {
         name: 'editar_evento',
-        description: 'Modifica un evento existente en Google Calendar (cambia su título, hora de inicio/fin, descripción o lugar).',
+        description: 'Modifica un evento existente en cualquier calendario de Google Calendar (título, fecha/hora, descripción, o lo mueve a otro calendario como Deporte).',
         parameters: {
           type: Type.OBJECT,
           properties: {
-            search_title: { type: Type.STRING, description: 'Nombre actual del evento que se quiere modificar' },
-            new_title: { type: Type.STRING, description: 'Nuevo título para el evento' },
+            search_title: { type: Type.STRING, description: 'Nombre actual del evento a buscar' },
+            new_title: { type: Type.STRING, description: 'Nuevo título' },
+            new_calendar: { type: Type.STRING, description: 'Nombre del calendario de destino si el usuario pide mover el evento a otro calendario (ej: "Deporte")' },
             start_time: { type: Type.STRING, description: 'Nueva fecha y hora de inicio en formato YYYY-MM-DDTHH:mm' },
             end_time: { type: Type.STRING, description: 'Nueva fecha y hora de fin en formato YYYY-MM-DDTHH:mm' },
             description: { type: Type.STRING, description: 'Nueva descripción' },
@@ -37,22 +80,23 @@ export const assistantTools = [
       },
       {
         name: 'borrar_evento',
-        description: 'Elimina o cancela un evento de Google Calendar buscándolo por su título.',
+        description: 'Elimina un evento de cualquier calendario de Google Calendar.',
         parameters: {
           type: Type.OBJECT,
           properties: {
-            title: { type: Type.STRING, description: 'Nombre del evento a eliminar' }
+            title: { type: Type.STRING, description: 'Nombre del evento a eliminar' },
+            delete_series: { type: Type.BOOLEAN, description: 'Pon true si es un evento recurrente y quiere borrar todas las repeticiones futuras' }
           },
           required: ['title']
         }
       },
       {
         name: 'consultar_calendario',
-        description: 'Consulta los eventos de Google Calendar para los próximos N días.',
+        description: 'Lee todos los calendarios del usuario (Principal, Deporte, Cumpleaños, etc.) para los próximos N días.',
         parameters: {
           type: Type.OBJECT,
           properties: {
-            days: { type: Type.NUMBER, description: 'Número de días hacia adelante que se quieren consultar (ej: 7 para una semana, 30 para un mes)' }
+            days: { type: Type.NUMBER, description: 'Días hacia adelante a consultar (por defecto 14)' }
           }
         }
       },
@@ -146,7 +190,7 @@ export const assistantTools = [
         }
       },
 
-      // --- HERRAMIENTAS DE NUTRICIÓN Y RESUMEN GLOBAL ---
+      // --- NUTRICIÓN Y ESTADO GLOBAL ---
       {
         name: 'registrar_comida',
         description: 'Registra una comida y sus macronutrientes en la base de datos de nutrición.',
@@ -162,7 +206,7 @@ export const assistantTools = [
       },
       {
         name: 'consultar_estado_dia',
-        description: 'Lee en tiempo real TODAS las listas de Google Tasks, los eventos próximos de Google Calendar y las comidas registradas hoy.',
+        description: 'Lee en tiempo real TODAS las listas de Google Tasks, TODOS los calendarios (Principal, Deporte, Cumpleaños) y las comidas de hoy.',
         parameters: {
           type: Type.OBJECT,
           properties: {}
