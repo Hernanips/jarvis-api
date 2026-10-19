@@ -57,7 +57,7 @@ export const assistantTools = [
             recurrence_type: { type: Type.STRING, description: '"DAILY", "WEEKLY", "MONTHLY" o "YEARLY"' },
             recurrence_interval: { type: Type.NUMBER, description: 'Intervalo de repetición (ej: 1)' },
             days_of_week: { type: Type.STRING, description: 'Días si es WEEKLY (ej: "TUESDAY,FRIDAY")' },
-            reminder_minutes: { type: Type.NUMBER, description: 'Minutos antes del evento para enviar un recordatorio o notificación popup (ej: 25 para 25 minutos antes)' }
+            reminders: { type: Type.STRING, description: 'Minutos antes para las notificaciones separados por comas si son varios (ej: "25, 120, 4320" para 25 minutos, 2 horas y 3 días antes)' }
           },
           required: ['title', 'start_time']
         }
