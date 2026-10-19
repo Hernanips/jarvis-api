@@ -44,36 +44,35 @@ export const assistantTools = [
       // --- EVENTOS DE GOOGLE CALENDAR (Con soporte Multi-calendario y Recurrencias) ---
       {
         name: 'crear_evento',
-        description: 'Agenda un evento (único o recurrente) en Google Calendar. Si es un cumpleaños, pon solo YYYY-MM-DD en start_time y recurrence_type="YEARLY". Si es de deporte o entreno, pon calendar_name="Deporte".',
+        description: 'Agenda un evento (único o recurrente) en Google Calendar. Permite configurar recordatorios personalizados en minutos.',
         parameters: {
           type: Type.OBJECT,
           properties: {
             title: { type: Type.STRING, description: 'Título del evento' },
-            calendar_name: { type: Type.STRING, description: 'Nombre del calendario donde guardarlo (ej: "Deporte", "Principal"). Si no especifica, déjalo vacío.' },
-            start_time: { type: Type.STRING, description: 'Inicio en formato YYYY-MM-DDTHH:mm (o solo YYYY-MM-DD si dura todo el día / cumpleaños)' },
-            end_time: { type: Type.STRING, description: 'Fin en formato YYYY-MM-DDTHH:mm (opcional)' },
-            description: { type: Type.STRING, description: 'Descripción o notas del evento' },
-            location: { type: Type.STRING, description: 'Ubicación o lugar' },
-            recurrence_type: { type: Type.STRING, description: 'Tipo de repetición si es recurrente: "DAILY" (diario), "WEEKLY" (semanal), "MONTHLY" (mensual) o "YEARLY" (anual, ideal para cumpleaños).' },
-            recurrence_interval: { type: Type.NUMBER, description: 'Intervalo de repetición (ej: 1 para cada semana/día, 2 para cada 2 días o cada 2 semanas).' },
-            days_of_week: { type: Type.STRING, description: 'Solo si recurrence_type es WEEKLY: días separados por comas en inglés (ej: "TUESDAY,FRIDAY" para martes y viernes).' }
+            calendar_name: { type: Type.STRING, description: 'Nombre del calendario (ej: "Deporte", "Personal")' },
+            start_time: { type: Type.STRING, description: 'Inicio en formato YYYY-MM-DDTHH:mm (o YYYY-MM-DD si es todo el día)' },
+            end_time: { type: Type.STRING, description: 'Fin en formato YYYY-MM-DDTHH:mm' },
+            description: { type: Type.STRING, description: 'Descripción o notas' },
+            location: { type: Type.STRING, description: 'Ubicación' },
+            recurrence_type: { type: Type.STRING, description: '"DAILY", "WEEKLY", "MONTHLY" o "YEARLY"' },
+            recurrence_interval: { type: Type.NUMBER, description: 'Intervalo de repetición (ej: 1)' },
+            days_of_week: { type: Type.STRING, description: 'Días si es WEEKLY (ej: "TUESDAY,FRIDAY")' },
+            reminder_minutes: { type: Type.NUMBER, description: 'Minutos antes del evento para enviar un recordatorio o notificación popup (ej: 25 para 25 minutos antes)' }
           },
           required: ['title', 'start_time']
         }
       },
       {
         name: 'editar_evento',
-        description: 'Modifica un evento existente en cualquier calendario de Google Calendar (título, fecha/hora, descripción, o lo mueve a otro calendario como Deporte).',
+        description: 'Modifica un evento existente y permite cambiar su recordatorio o notificación.',
         parameters: {
           type: Type.OBJECT,
           properties: {
-            search_title: { type: Type.STRING, description: 'Nombre actual del evento a buscar' },
+            search_title: { type: Type.STRING, description: 'Nombre actual del evento' },
             new_title: { type: Type.STRING, description: 'Nuevo título' },
-            new_calendar: { type: Type.STRING, description: 'Nombre del calendario de destino si el usuario pide mover el evento a otro calendario (ej: "Deporte")' },
-            start_time: { type: Type.STRING, description: 'Nueva fecha y hora de inicio en formato YYYY-MM-DDTHH:mm' },
-            end_time: { type: Type.STRING, description: 'Nueva fecha y hora de fin en formato YYYY-MM-DDTHH:mm' },
-            description: { type: Type.STRING, description: 'Nueva descripción' },
-            location: { type: Type.STRING, description: 'Nueva ubicación' }
+            start_time: { type: Type.STRING, description: 'Nuevo inicio YYYY-MM-DDTHH:mm' },
+            end_time: { type: Type.STRING, description: 'Nuevo fin YYYY-MM-DDTHH:mm' },
+            reminder_minutes: { type: Type.NUMBER, description: 'Nuevos minutos antes para el recordatorio' }
           },
           required: ['search_title']
         }
