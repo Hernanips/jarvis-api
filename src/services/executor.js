@@ -64,10 +64,10 @@ export async function ejecutarHerramienta(nombre, args, userId) {
     return error ? { error: error.message } : { ok: true, comida_registrada: data[0] };
   }
 
-  // 4. CONSULTAR ESTADO DEL DÍA (Tasks + Calendar 7 días + Comidas de hoy)
+  // 4. CONSULTAR ESTADO DEL DÍA (Tasks + Todos los Calendarios + Comidas de hoy)
   if (nombre === 'consultar_estado_dia') {
     let tareasGoogle = {};
-    let eventosCalendario = [];
+    let eventosCalendario = {};
     try {
       const url = new URL(scriptUrl);
       url.searchParams.append('accion', 'leer_tareas');
@@ -75,7 +75,7 @@ export async function ejecutarHerramienta(nombre, args, userId) {
       const resG = await fetch(url.toString());
       const dataG = await resG.json();
       tareasGoogle = dataG.tareas || {};
-      eventosCalendario = dataG.eventos_proximos_7_dias || [];
+      eventosCalendario = dataG.eventos_calendario || {};
     } catch (e) {
       console.error("❌ Error leyendo Google Bridge:", e);
     }
@@ -89,7 +89,7 @@ export async function ejecutarHerramienta(nombre, args, userId) {
 
     return {
       hoy_es: hoy,
-      eventos_calendario_proximos_7_dias: eventosCalendario,
+      eventos_en_todos_los_calendarios: eventosCalendario,
       listas_google_tasks: tareasGoogle,
       comidas_registradas_hoy: comidas || []
     };

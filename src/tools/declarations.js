@@ -92,11 +92,12 @@ export const assistantTools = [
       },
       {
         name: 'consultar_calendario',
-        description: 'Lee todos los calendarios del usuario (Principal, Deporte, Cumpleaños, etc.) para los próximos N días.',
+        description: 'Lee los eventos de TODOS los calendarios del usuario a la vez (Personal, Deporte, Cumpleaños, etc.) sin necesidad de especificar cuál, tanto de días pasados como de días futuros. Úsala siempre que pregunte qué tiene mañana, qué tuvo un día pasado o qué hay en su agenda.',
         parameters: {
           type: Type.OBJECT,
           properties: {
-            days: { type: Type.NUMBER, description: 'Días hacia adelante a consultar (por defecto 14)' }
+            start_date: { type: Type.STRING, description: 'Fecha de inicio de búsqueda en formato YYYY-MM-DD (ej: si pregunta por el día 10 de este mes, pon 2026-10-10)' },
+            end_date: { type: Type.STRING, description: 'Fecha de fin de búsqueda en formato YYYY-MM-DD (ej: 2026-10-10)' }
           }
         }
       },
