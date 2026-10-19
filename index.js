@@ -1,5 +1,5 @@
 import express from 'express';
-import { ai } from './src/config/clients.js';
+import { supabase, ai } from './src/config/clients.js';
 import { assistantTools } from './src/tools/declarations.js';
 import { ejecutarHerramienta } from './src/services/executor.js';
 
@@ -9,13 +9,22 @@ app.use(express.static('public'));
 
 app.post('/api/assistant', async (req, res) => {
   try {
-    // 🔒 CERROJO DE SEGURIDAD
-    const clientPin = req.headers['x-jarvis-pin'];
-    if (process.env.JARVIS_PIN && clientPin !== process.env.JARVIS_PIN) {
-      return res.status(401).json({ error: '🔒 Acceso denegado. Clave incorrecta.' });
+    // 🔒 VERIFICACIÓN DE AUTENTICACIÓN MEDIANTE TOKEN DE SUPABASE
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '🔒 No autorizado. Inicia sesión.' });
     }
 
-    const { message, history = [], userId = 'usuario_principal' } = req.body;
+    const token = authHeader.split(' ')[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      return res.status(401).json({ error: '🔒 Sesión inválida o caducada.' });
+    }
+
+    const userId = user.id; // <-- ID único y seguro del usuario autenticado
+
+    const { message, history = [] } = req.body;
 
     const ahora = new Date();
     const fechaLegible = ahora.toLocaleDateString('es-ES', {
@@ -35,9 +44,9 @@ app.post('/api/assistant', async (req, res) => {
       Eres el asistente y tutor estricto del usuario (estilo Jarvis / mentor exigente).
       Hoy es ${fechaLegible} y son las ${horaLegible}.
       - REGLA DE ORO: NUNCA crees tareas ni eventos automáticamente a menos que el usuario te lo pida de forma explícita.
-      - Si pide agendar algo con hora específica (ej: "mañana de 17:00 a 19:00", "el viernes a las 10") o pregunta por su agenda/calendario, usa las herramientas de Google Calendar ('crear_evento', 'editar_evento', 'borrar_evento', 'consultar_calendario').
-      - Si pide apuntar una tarea sin hora, modificarla, completarla o MOVERLA de una lista/cajón a otro (ej: "muévela a Pecera"), usa SIEMPRE 'editar_tarea' pasando 'search_title' y 'new_category'.
-      - Si menciona algo que ha comido, estima las calorías y proteínas reales y llama a 'registrar_comida'.
+      - Si pide agendar algo con hora específica o pregunta por su agenda/calendario, usa las herramientas de Google Calendar.
+      - Si pide apuntar una tarea sin hora, modificarla, completarla o moverla, usa 'editar_tarea'.
+      - Si menciona algo que ha comido, estima las calorías y proteínas y llama a 'registrar_comida'.
       - Si pregunta qué tiene pendiente o cómo lleva el día, llama a 'consultar_estado_dia'.
       - Sé directo, breve (2-4 frases máximo) y exigente.
     `;
@@ -58,7 +67,9 @@ app.post('/api/assistant', async (req, res) => {
 
       const functionResponseParts = [];
       for (const call of response.functionCalls) {
-        console.log(`🔧 Ejecutando herramienta: ${call.name}`, call.args);
+        console.log(`🔧 Ejecutando herramienta para [${userId}]: ${call.name}`, call.args);
+        
+        // Pasamos el userId real a las herramientas para aislar los datos en Supabase
         const resultadoBD = await ejecutarHerramienta(call.name, call.args, userId);
 
         functionResponseParts.push({
@@ -88,5 +99,5 @@ app.post('/api/assistant', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor Jarvis V2 escuchando en http://localhost:${PORT}`);
+  console.log(`🚀 Servidor Jarvis Multi-usuario escuchando en http://localhost:${PORT}`);
 });
