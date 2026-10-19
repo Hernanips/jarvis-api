@@ -170,7 +170,7 @@ export const assistantTools = [
           properties: {
             search_title: { type: Type.STRING, description: 'Nombre actual de la tarea que se quiere buscar para editar' },
             new_title: { type: Type.STRING, description: 'Nuevo título si se quiere renombrar la tarea' },
-            new_category: { type: Type.STRING, description: 'Nombre de la nueva lista o cajón de destino si el usuario pide mover la tarea de una lista a otra (ej: Pecera, Project OBSCURA)' },
+            new_category: { type: Type.STRING, description: 'Nombre de la nueva lista o cajón de destino si el usuario pide mover la tarea de una lista a otra' },
             description: { type: Type.STRING, description: 'Nueva descripción o detalles' },
             due_date: { type: Type.STRING, description: 'Nueva fecha en formato YYYY-MM-DD' },
             completed: { type: Type.BOOLEAN, description: 'true para marcar como hecha/completada, false para desmarcarla y volver a ponerla como pendiente' }

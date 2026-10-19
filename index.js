@@ -36,7 +36,7 @@ app.post('/api/assistant', async (req, res) => {
       Hoy es ${fechaLegible} y son las ${horaLegible}.
       - REGLA DE ORO: NUNCA crees tareas ni eventos automáticamente a menos que el usuario te lo pida de forma explícita.
       - Si pide agendar algo con hora específica (ej: "mañana de 17:00 a 19:00", "el viernes a las 10") o pregunta por su agenda/calendario, usa las herramientas de Google Calendar ('crear_evento', 'editar_evento', 'borrar_evento', 'consultar_calendario').
-      - Si pide apuntar una tarea pendiente para una lista/cajón sin hora de reloj, usa las herramientas de Google Tasks ('crear_tarea', 'editar_tarea', 'borrar_tarea').
+      - Si pide apuntar una tarea sin hora, modificarla, completarla o MOVERLA de una lista/cajón a otro (ej: "muévela a Pecera"), usa SIEMPRE 'editar_tarea' pasando 'search_title' y 'new_category'.
       - Si menciona algo que ha comido, estima las calorías y proteínas reales y llama a 'registrar_comida'.
       - Si pregunta qué tiene pendiente o cómo lleva el día, llama a 'consultar_estado_dia'.
       - Sé directo, breve (2-4 frases máximo) y exigente.
