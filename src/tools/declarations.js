@@ -3,6 +3,61 @@ import { Type } from '@google/genai';
 export const assistantTools = [
   {
     functionDeclarations: [
+      // --- HERRAMIENTAS DE GOOGLE CALENDAR ---
+      {
+        name: 'crear_evento',
+        description: 'Agenda un evento o bloque de tiempo con fecha y hora en Google Calendar. Úsala cuando el usuario mencione una hora específica (ej: "a las 17:00", "de 10 a 12"), citas, clases o entregas en el calendario.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING, description: 'Título del evento' },
+            start_time: { type: Type.STRING, description: 'Fecha y hora de inicio en formato YYYY-MM-DDTHH:mm (o solo YYYY-MM-DD si es un evento de todo el día)' },
+            end_time: { type: Type.STRING, description: 'Fecha y hora de fin en formato YYYY-MM-DDTHH:mm (opcional, por defecto dura 1 hora)' },
+            description: { type: Type.STRING, description: 'Descripción o notas del evento' },
+            location: { type: Type.STRING, description: 'Ubicación o lugar del evento' }
+          },
+          required: ['title', 'start_time']
+        }
+      },
+      {
+        name: 'editar_evento',
+        description: 'Modifica un evento existente en Google Calendar (cambia su título, hora de inicio/fin, descripción o lugar).',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            search_title: { type: Type.STRING, description: 'Nombre actual del evento que se quiere modificar' },
+            new_title: { type: Type.STRING, description: 'Nuevo título para el evento' },
+            start_time: { type: Type.STRING, description: 'Nueva fecha y hora de inicio en formato YYYY-MM-DDTHH:mm' },
+            end_time: { type: Type.STRING, description: 'Nueva fecha y hora de fin en formato YYYY-MM-DDTHH:mm' },
+            description: { type: Type.STRING, description: 'Nueva descripción' },
+            location: { type: Type.STRING, description: 'Nueva ubicación' }
+          },
+          required: ['search_title']
+        }
+      },
+      {
+        name: 'borrar_evento',
+        description: 'Elimina o cancela un evento de Google Calendar buscándolo por su título.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING, description: 'Nombre del evento a eliminar' }
+          },
+          required: ['title']
+        }
+      },
+      {
+        name: 'consultar_calendario',
+        description: 'Consulta los eventos de Google Calendar para los próximos N días.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            days: { type: Type.NUMBER, description: 'Número de días hacia adelante que se quieren consultar (ej: 7 para una semana, 30 para un mes)' }
+          }
+        }
+      },
+
+      // --- HERRAMIENTAS DE GOOGLE TASKS ---
       {
         name: 'crear_lista',
         description: 'Crea una nueva lista o cajón de tareas en Google Tasks.',
@@ -90,6 +145,8 @@ export const assistantTools = [
           required: ['title']
         }
       },
+
+      // --- HERRAMIENTAS DE NUTRICIÓN Y RESUMEN GLOBAL ---
       {
         name: 'registrar_comida',
         description: 'Registra una comida y sus macronutrientes en la base de datos de nutrición.',
@@ -105,7 +162,7 @@ export const assistantTools = [
       },
       {
         name: 'consultar_estado_dia',
-        description: 'Lee en tiempo real TODAS las listas, tareas y subtareas de Google Tasks del usuario (completadas y pendientes) y las comidas de hoy.',
+        description: 'Lee en tiempo real TODAS las listas de Google Tasks, los eventos próximos de Google Calendar y las comidas registradas hoy.',
         parameters: {
           type: Type.OBJECT,
           properties: {}

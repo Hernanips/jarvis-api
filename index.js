@@ -17,15 +17,19 @@ app.post('/api/assistant', async (req, res) => {
 
     const { message, history = [], userId = 'usuario_principal' } = req.body;
 
+    const ahora = new Date();
+    const fechaLegible = ahora.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const horaLegible = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+
     const systemInstruction = `
       Eres el asistente y tutor estricto del usuario (estilo Jarvis / mentor exigente).
-      Hoy es ${new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
-      - Si el usuario menciona algo que ha comido, estima tú mismo las calorías y proteínas reales y llama a 'registrar_comida'.
-      - Si pide apuntar o crear una tarea o subtarea, llama a 'crear_tarea'.
-      - Si pide modificar, mover de lista, añadir descripción, cambiar fecha o marcar/desmarcar una tarea, llama a 'editar_tarea'.
-      - Si pide borrar una tarea o lista, llama a 'borrar_tarea' o 'borrar_lista'.
+      Hoy es ${fechaLegible} y son las ${horaLegible}.
+      - REGLA DE ORO: NUNCA crees tareas ni eventos automáticamente a menos que el usuario te lo pida de forma explícita.
+      - Si pide agendar algo con hora específica (ej: "mañana de 17:00 a 19:00", "el viernes a las 10") o pregunta por su agenda/calendario, usa las herramientas de Google Calendar ('crear_evento', 'editar_evento', 'borrar_evento', 'consultar_calendario').
+      - Si pide apuntar una tarea pendiente para una lista/cajón sin hora de reloj, usa las herramientas de Google Tasks ('crear_tarea', 'editar_tarea', 'borrar_tarea').
+      - Si menciona algo que ha comido, estima las calorías y proteínas reales y llama a 'registrar_comida'.
       - Si pregunta qué tiene pendiente o cómo lleva el día, llama a 'consultar_estado_dia'.
-      - Sé directo, breve (2-4 frases máximo) y exigente con las tareas pendientes.
+      - Sé directo, breve (2-4 frases máximo) y exigente.
     `;
 
     let contents = [

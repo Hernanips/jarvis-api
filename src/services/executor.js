@@ -3,22 +3,33 @@ import { supabase } from '../config/clients.js';
 export async function ejecutarHerramienta(nombre, args, userId) {
   const scriptUrl = process.env.GOOGLE_SCRIPT_URL;
 
-  // 1. GESTIÓN DE LISTAS (Crear, Renombrar, Borrar, Limpiar)
-  if (['crear_lista', 'editar_lista', 'borrar_lista', 'limpiar_completadas'].includes(nombre)) {
+  // 1. ACCIONES DIRECTAS EN GOOGLE APPS SCRIPT (Listas de Tasks y Eventos de Calendar)
+  const accionesDirectas = [
+    'crear_lista', 'editar_lista', 'borrar_lista', 'limpiar_completadas',
+    'crear_evento', 'editar_evento', 'borrar_evento', 'consultar_calendario',
+    'editar_tarea', 'borrar_tarea'
+  ];
+
+  if (accionesDirectas.includes(nombre)) {
     try {
       const url = new URL(scriptUrl);
       url.searchParams.append('accion', nombre);
       for (const [key, val] of Object.entries(args)) {
-        if (val !== undefined) url.searchParams.append(key, String(val));
+        if (val !== undefined && val !== null) {
+          url.searchParams.append(key, String(val));
+        }
       }
       const res = await fetch(url.toString());
-      return await res.json();
+      const datos = await res.json();
+      console.log(`⚡ Google Bridge (${nombre}):`, datos);
+      return datos;
     } catch (err) {
-      return { error: `No se pudo ejecutar ${nombre} en Google Tasks` };
+      console.error(`❌ Error en ${nombre}:`, err);
+      return { error: `No se pudo ejecutar ${nombre}` };
     }
   }
 
-  // 2. CREAR TAREA (O SUBTAREA)
+  // 2. CREAR TAREA (Google Tasks + Copia en Supabase)
   if (nombre === 'crear_tarea') {
     try {
       const url = new URL(scriptUrl);
@@ -42,40 +53,7 @@ export async function ejecutarHerramienta(nombre, args, userId) {
     }
   }
 
-  // 3. EDITAR, MOVER, COMPLETAR O DESMARCAR TAREA
-  if (nombre === 'editar_tarea') {
-    try {
-      const url = new URL(scriptUrl);
-      url.searchParams.append('accion', 'editar_tarea');
-      url.searchParams.append('search_title', args.search_title);
-      if (args.new_title) url.searchParams.append('new_title', args.new_title);
-      if (args.new_category) url.searchParams.append('new_category', args.new_category);
-      if (args.description) url.searchParams.append('description', args.description);
-      if (args.due_date) url.searchParams.append('due_date', args.due_date);
-      if (args.completed !== undefined) url.searchParams.append('completed', String(args.completed));
-
-      const res = await fetch(url.toString());
-      return await res.json();
-    } catch (err) {
-      return { error: "No se pudo editar la tarea" };
-    }
-  }
-
-  // 4. BORRAR TAREA
-  if (nombre === 'borrar_tarea') {
-    try {
-      const url = new URL(scriptUrl);
-      url.searchParams.append('accion', 'borrar_tarea');
-      url.searchParams.append('title', args.title);
-
-      const res = await fetch(url.toString());
-      return await res.json();
-    } catch (err) {
-      return { error: "No se pudo borrar la tarea" };
-    }
-  }
-
-  // 5. REGISTRAR COMIDA EN SUPABASE
+  // 3. REGISTRAR COMIDA EN SUPABASE
   if (nombre === 'registrar_comida') {
     const { data, error } = await supabase
       .from('meals')
@@ -85,9 +63,10 @@ export async function ejecutarHerramienta(nombre, args, userId) {
     return error ? { error: error.message } : { ok: true, comida_registrada: data[0] };
   }
 
-  // 6. CONSULTAR GOOGLE TASKS + SUPABASE (Solo comidas de hoy)
+  // 4. CONSULTAR ESTADO DEL DÍA (Tasks + Calendar 7 días + Comidas de hoy)
   if (nombre === 'consultar_estado_dia') {
     let tareasGoogle = {};
+    let eventosCalendario = [];
     try {
       const url = new URL(scriptUrl);
       url.searchParams.append('accion', 'leer_tareas');
@@ -95,8 +74,9 @@ export async function ejecutarHerramienta(nombre, args, userId) {
       const resG = await fetch(url.toString());
       const dataG = await resG.json();
       tareasGoogle = dataG.tareas || {};
+      eventosCalendario = dataG.eventos_proximos_7_dias || [];
     } catch (e) {
-      console.error("❌ Error leyendo Google Tasks:", e);
+      console.error("❌ Error leyendo Google Bridge:", e);
     }
 
     const hoy = new Date().toISOString().split('T')[0];
@@ -108,6 +88,7 @@ export async function ejecutarHerramienta(nombre, args, userId) {
 
     return {
       hoy_es: hoy,
+      eventos_calendario_proximos_7_dias: eventosCalendario,
       listas_google_tasks: tareasGoogle,
       comidas_registradas_hoy: comidas || []
     };
