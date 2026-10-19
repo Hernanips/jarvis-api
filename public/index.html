@@ -321,27 +321,37 @@
     </div>
 
     <script>
-        // CONFIGURACIÓN DE SUPABASE (Sustituye por tus claves públicas reales o déjalas desde variables)
-        const SUPABASE_URL = 'https://tu-proyecto.supabase.co';
-        const SUPABASE_ANON_KEY = 'tu-anon-key-publica';
-        
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+        let supabaseClient = null;
+        const authModal = document.getElementById('auth-modal');
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('userInput');
-        const authModal = document.getElementById('auth-modal');
         let historial = [];
 
-        // Comprobar sesión al cargar la página
-        supabaseClient.auth.getSession().then(({ data: { session } }) => {
-            if (session) {
-                authModal.style.display = 'none';
-            } else {
-                authModal.style.display = 'flex';
+        // Cargar configuración de Supabase desde el backend de forma segura
+        async function initApp() {
+            try {
+                const res = await fetch('/api/config');
+                const config = await res.json();
+
+                // Inicializar cliente de Supabase con las credenciales del .env
+                supabaseClient = supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+
+                // Comprobar sesión activa
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (session) {
+                    authModal.style.display = 'none';
+                } else {
+                    authModal.style.display = 'flex';
+                }
+            } catch (e) {
+                console.error("Error al inicializar la app:", e);
             }
-        });
+        }
+
+        initApp();
 
         async function loginGoogle() {
+            if (!supabaseClient) return;
             await supabaseClient.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
@@ -351,6 +361,7 @@
         }
 
         async function logout() {
+            if (!supabaseClient) return;
             await supabaseClient.auth.signOut();
             location.reload();
         }
