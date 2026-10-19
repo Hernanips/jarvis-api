@@ -80,7 +80,7 @@ export async function ejecutarHerramienta(nombre, args, userId) {
       console.error("❌ Error leyendo Google Bridge:", e);
     }
 
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
     const { data: comidas } = await supabase
       .from('meals')
       .select('description, calories, protein_g, created_at')

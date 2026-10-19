@@ -18,8 +18,18 @@ app.post('/api/assistant', async (req, res) => {
     const { message, history = [], userId = 'usuario_principal' } = req.body;
 
     const ahora = new Date();
-    const fechaLegible = ahora.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    const horaLegible = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    const fechaLegible = ahora.toLocaleDateString('es-ES', {
+      timeZone: 'Europe/Madrid',
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    const horaLegible = ahora.toLocaleTimeString('es-ES', {
+      timeZone: 'Europe/Madrid',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
 
     const systemInstruction = `
       Eres el asistente y tutor estricto del usuario (estilo Jarvis / mentor exigente).
