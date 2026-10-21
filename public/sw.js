@@ -1,6 +1,12 @@
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener('fetch', (event) => {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js')
-        .then(() => console.log("Service Worker registrado con éxito"));
-  }
+  // Petición estándar permitida para la PWA
+  event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
 });
