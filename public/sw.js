@@ -1,4 +1,6 @@
-if ('serviceWorker' in navigator) {
+self.addEventListener('fetch', (event) => {
+  if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js')
         .then(() => console.log("Service Worker registrado con éxito"));
-}
+  }
+});
