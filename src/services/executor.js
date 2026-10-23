@@ -38,7 +38,9 @@ export async function ejecutarHerramienta(nombre, args, userId) {
         user_id: userId,
         description: args.description,
         calories: Math.round(Number(args.calories) || 0),
-        protein_g: Math.round(Number(args.protein_g) || 0)
+        protein_g: Math.round(Number(args.protein_g) || 0),
+        carbs_g: Math.round(Number(args.carbs_g) || 0),
+        fat_g: Math.round(Number(args.fat_g) || 0)
       }])
       .select();
 
@@ -64,6 +66,8 @@ export async function ejecutarHerramienta(nombre, args, userId) {
     if (args.new_description) cambios.description = args.new_description;
     if (args.calories !== undefined) cambios.calories = Math.round(Number(args.calories));
     if (args.protein_g !== undefined) cambios.protein_g = Math.round(Number(args.protein_g));
+    if (args.carbs_g !== undefined) cambios.carbs_g = Math.round(Number(args.carbs_g));
+    if (args.fat_g !== undefined) cambios.fat_g = Math.round(Number(args.fat_g));
 
     const { data: actualizada, error: errUpd } = await supabase
       .from('meals')
@@ -106,7 +110,7 @@ export async function ejecutarHerramienta(nombre, args, userId) {
 
     const { data: comidas, error } = await supabase
       .from('meals')
-      .select('id, description, calories, protein_g, created_at')
+      .select('id, description, calories, protein_g, carbs_g, fat_g, created_at')
       .eq('user_id', userId)
       .gte('created_at', inicioDia)
       .lte('created_at', finDia)
@@ -114,17 +118,51 @@ export async function ejecutarHerramienta(nombre, args, userId) {
 
     if (error) return { error: error.message };
 
-    const totalCalorias = (comidas || []).reduce((acc, c) => acc + (Number(c.calories) || 0), 0);
-    const totalProteinas = (comidas || []).reduce((acc, c) => acc + (Number(c.protein_g) || 0), 0);
+    const lista = comidas || [];
+    const resumen = lista.reduce((acc, c) => ({
+      calorias: acc.calorias + (Number(c.calories) || 0),
+      proteina_g: acc.proteina_g + (Number(c.protein_g) || 0),
+      carbohidratos_g: acc.carbohidratos_g + (Number(c.carbs_g) || 0),
+      grasas_g: acc.grasas_g + (Number(c.fat_g) || 0)
+    }), { calorias: 0, proteina_g: 0, carbohidratos_g: 0, grasas_g: 0 });
 
     return {
       fecha_consultada: fecha,
-      comidas: comidas || [],
-      resumen_nutricional: { total_calorias: totalCalorias, total_proteina_g: totalProteinas }
+      comidas: lista,
+      totales_del_dia: resumen
     };
   }
 
-  // 6. CONSULTAR ESTADO DEL DÍA (Tasks + Todos los Calendarios + Comidas de hoy)
+  // 6. REGISTRAR PESO CORPORAL
+  if (nombre === 'registrar_peso') {
+    const { data, error } = await supabase
+      .from('weight_logs')
+      .insert([{
+        user_id: userId,
+        weight_kg: Number(args.weight_kg),
+        body_fat_pct: args.body_fat_pct !== undefined ? Number(args.body_fat_pct) : null,
+        muscle_mass_kg: args.muscle_mass_kg !== undefined ? Number(args.muscle_mass_kg) : null,
+        notes: args.notes || null
+      }])
+      .select();
+
+    return error ? { error: error.message } : { ok: true, registro_peso: data[0] };
+  }
+
+  // 7. CONSULTAR HISTORIAL DE PESO
+  if (nombre === 'consultar_peso') {
+    const limite = Number(args.limit) || 10;
+    const { data, error } = await supabase
+      .from('weight_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limite);
+
+    return error ? { error: error.message } : { historial_peso: data || [] };
+  }
+
+  // 8. CONSULTAR ESTADO DEL DÍA (Tasks + Calendarios + Nutrición + Último Peso)
   if (nombre === 'consultar_estado_dia') {
     let dataG = {};
     try {
@@ -139,13 +177,24 @@ export async function ejecutarHerramienta(nombre, args, userId) {
     const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
     const { data: comidas } = await supabase
       .from('meals')
-      .select('id, description, calories, protein_g, created_at')
+      .select('id, description, calories, protein_g, carbs_g, fat_g, created_at')
       .eq('user_id', userId)
       .gte('created_at', `${hoy}T00:00:00.000Z`);
 
+    const { data: ultimoPeso } = await supabase
+      .from('weight_logs')
+      .select('weight_kg, body_fat_pct, muscle_mass_kg, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
     const listaComidas = comidas || [];
-    const totalCalorias = listaComidas.reduce((acc, c) => acc + (Number(c.calories) || 0), 0);
-    const totalProteinas = listaComidas.reduce((acc, c) => acc + (Number(c.protein_g) || 0), 0);
+    const totalesNutricion = listaComidas.reduce((acc, c) => ({
+      calorias: acc.calorias + (Number(c.calories) || 0),
+      proteina_g: acc.proteina_g + (Number(c.protein_g) || 0),
+      carbohidratos_g: acc.carbohidratos_g + (Number(c.carbs_g) || 0),
+      grasas_g: acc.grasas_g + (Number(c.fat_g) || 0)
+    }), { calorias: 0, proteina_g: 0, carbohidratos_g: 0, grasas_g: 0 });
 
     return {
       hoy_es: hoy,
@@ -155,9 +204,9 @@ export async function ejecutarHerramienta(nombre, args, userId) {
       tareas_en_listas: dataG.tareas || {},
       nutricion_hoy: {
         comidas: listaComidas,
-        total_calorias: totalCalorias,
-        total_proteina_g: totalProteinas
-      }
+        totales: totalesNutricion
+      },
+      ultimo_peso_registrado: ultimoPeso && ultimoPeso.length > 0 ? ultimoPeso[0] : null
     };
   }
 }

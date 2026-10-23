@@ -194,36 +194,41 @@ export const assistantTools = [
       },
 
       // --- NUTRICIÓN Y COMIDAS (Supabase) ---
+      // --- NUTRICIÓN, MACROS Y PESO CORPORAL (Supabase) ---
       {
         name: 'registrar_comida',
-        description: 'Registra una comida y sus macronutrientes en la base de datos de nutrición.',
+        description: 'Registra una comida estimando sus calorías y macronutrientes (proteínas, carbohidratos y grasas).',
         parameters: {
           type: Type.OBJECT,
           properties: {
-            description: { type: Type.STRING, description: 'Descripción clara de la comida' },
+            description: { type: Type.STRING, description: 'Descripción clara de la comida y cantidades' },
             calories: { type: Type.NUMBER, description: 'Calorías totales estimadas' },
-            protein_g: { type: Type.NUMBER, description: 'Gramos de proteína estimados' }
+            protein_g: { type: Type.NUMBER, description: 'Gramos de proteína estimados' },
+            carbs_g: { type: Type.NUMBER, description: 'Gramos de carbohidratos estimados' },
+            fat_g: { type: Type.NUMBER, description: 'Gramos de grasas estimados' }
           },
-          required: ['description', 'calories', 'protein_g']
+          required: ['description', 'calories', 'protein_g', 'carbs_g', 'fat_g']
         }
       },
       {
         name: 'editar_comida',
-        description: 'Modifica una comida ya registrada hoy (por si hubo un error en cantidades, calorías, proteínas o nombre).',
+        description: 'Modifica una comida ya registrada (por si hubo un error en cantidades, nombre o macros).',
         parameters: {
           type: Type.OBJECT,
           properties: {
-            search_description: { type: Type.STRING, description: 'Texto o nombre de la comida registrada que se quiere modificar' },
+            search_description: { type: Type.STRING, description: 'Nombre o texto de la comida que se quiere modificar' },
             new_description: { type: Type.STRING, description: 'Nueva descripción corregida' },
-            calories: { type: Type.NUMBER, description: 'Nuevas calorías corregidas' },
-            protein_g: { type: Type.NUMBER, description: 'Nuevos gramos de proteína corregidos' }
+            calories: { type: Type.NUMBER, description: 'Nuevas calorías' },
+            protein_g: { type: Type.NUMBER, description: 'Nuevos gramos de proteína' },
+            carbs_g: { type: Type.NUMBER, description: 'Nuevos gramos de carbohidratos' },
+            fat_g: { type: Type.NUMBER, description: 'Nuevos gramos de grasa' }
           },
           required: ['search_description']
         }
       },
       {
         name: 'borrar_comida',
-        description: 'Elimina una comida registrada por error en la base de datos.',
+        description: 'Elimina una comida registrada en la base de datos.',
         parameters: {
           type: Type.OBJECT,
           properties: {
@@ -234,11 +239,35 @@ export const assistantTools = [
       },
       {
         name: 'consultar_comidas',
-        description: 'Consulta el registro de comidas, calorías totales y proteínas de una fecha específica o rango de días.',
+        description: 'Consulta las comidas y el total de calorías y macronutrientes de una fecha específica (YYYY-MM-DD).',
         parameters: {
           type: Type.OBJECT,
           properties: {
-            date: { type: Type.STRING, description: 'Fecha a consultar en formato YYYY-MM-DD (si no se envía, consulta hoy)' }
+            date: { type: Type.STRING, description: 'Fecha en formato YYYY-MM-DD (si no se envía, consulta hoy)' }
+          }
+        }
+      },
+      {
+        name: 'registrar_peso',
+        description: 'Registra el peso corporal del usuario y opcionalmente su porcentaje de grasa, masa muscular o notas.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            weight_kg: { type: Type.NUMBER, description: 'Peso en kilogramos (ej: 74.5)' },
+            body_fat_pct: { type: Type.NUMBER, description: 'Porcentaje de grasa corporal opcional (ej: 14.2)' },
+            muscle_mass_kg: { type: Type.NUMBER, description: 'Masa muscular en kg opcional' },
+            notes: { type: Type.STRING, description: 'Notas adicionales (ej: "En ayunas", "Báscula gimnasio")' }
+          },
+          required: ['weight_kg']
+        }
+      },
+      {
+        name: 'consultar_peso',
+        description: 'Consulta el historial reciente de peso corporal y evolución física del usuario.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            limit: { type: Type.NUMBER, description: 'Número de registros recientes a consultar (por defecto 10)' }
           }
         }
       },
