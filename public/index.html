@@ -44,7 +44,7 @@
             overflow: hidden;
         }
 
-        /* HEADER CON SAFE-AREA PARA MÓVIL / PWA */
+        /* HEADER */
         header {
             padding-top: calc(14px + env(safe-area-inset-top, 0px));
             padding-bottom: 14px;
@@ -101,7 +101,7 @@
         }
         .lock-btn:hover { color: var(--text-main); border-color: var(--text-muted); }
 
-        /* BARRA DE ATAJOS RÁPIDOS PERSONALIZABLES */
+        /* BARRA DE ATAJOS */
         .quick-actions-bar {
             border-bottom: 1px solid var(--border);
             background: var(--bg-main);
@@ -144,7 +144,7 @@
             background: transparent;
             border: 1px dashed #3f3f46;
             color: var(--text-muted);
-            padding: 6px 10px;
+            padding: 6px 12px;
             border-radius: 999px;
             font-size: 12px;
             cursor: pointer;
@@ -156,7 +156,7 @@
         }
         .chip-action:hover { color: var(--text-main); border-color: var(--text-muted); background: var(--bg-card); }
 
-        /* CAJA DE CHAT */
+        /* CHAT BOX */
         #chat-box {
             flex: 1;
             overflow-y: auto;
@@ -229,7 +229,7 @@
             40% { transform: scale(1); opacity: 1; }
         }
 
-        /* ZONA INFERIOR ESTILO GEMINI CON SAFE-AREA */
+        /* ZONA INFERIOR */
         .input-wrapper {
             padding-top: 12px;
             padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
@@ -252,6 +252,7 @@
             border: 1px solid var(--border);
             border-radius: 24px;
             padding: 8px 10px 8px 18px;
+            position: relative;
             transition: border-color 0.2s, box-shadow 0.2s;
         }
         .input-area:focus-within { border-color: #52525b; }
@@ -279,6 +280,42 @@
         textarea#userInput::placeholder { color: #71717a; }
         textarea#userInput:disabled { opacity: 0.5; cursor: not-allowed; }
 
+        /* ONDAS DE AUDIO DENTRO DE LA CAJA (ESTILO GEMINI) */
+        .box-audio-indicator {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 0;
+            color: var(--accent);
+            font-size: 13px;
+            font-weight: 500;
+            flex: 1;
+        }
+        .input-area.listening textarea#userInput { display: none; }
+        .input-area.listening .box-audio-indicator { display: flex; }
+
+        .gemini-waves {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            height: 18px;
+        }
+        .gemini-waves span {
+            width: 3.5px;
+            background-color: var(--accent);
+            border-radius: 99px;
+            animation: gWave 0.8s infinite ease-in-out;
+        }
+        .gemini-waves span:nth-child(1) { height: 6px; animation-delay: 0s; }
+        .gemini-waves span:nth-child(2) { height: 16px; animation-delay: 0.15s; }
+        .gemini-waves span:nth-child(3) { height: 10px; animation-delay: 0.3s; }
+        .gemini-waves span:nth-child(4) { height: 14px; animation-delay: 0.45s; }
+
+        @keyframes gWave {
+            0%, 100% { transform: scaleY(0.4); opacity: 0.6; }
+            50% { transform: scaleY(1.2); opacity: 1; }
+        }
+
         .input-actions {
             display: flex;
             align-items: center;
@@ -287,70 +324,28 @@
             padding-bottom: 1px;
         }
 
-        /* BOTÓN DE MICRÓFONO Y ONDAS DE SONIDO ESTILO GEMINI */
+        /* BOTÓN DE MICRÓFONO */
         .mic-btn {
             background: transparent;
             color: var(--text-muted);
             border: none;
+            width: 38px;
             height: 38px;
-            min-width: 38px;
-            padding: 0 10px;
-            border-radius: 999px;
+            border-radius: 50%;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
             transition: all 0.2s;
         }
         .mic-btn:hover:not(:disabled) { background: #27272a; color: var(--text-main); }
         .mic-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-        
         .mic-btn.recording {
-            background: rgba(239, 68, 68, 0.14);
+            background: rgba(239, 68, 68, 0.15);
             color: var(--accent);
-            padding: 0 12px;
         }
 
-        .sound-waves {
-            display: none;
-            align-items: center;
-            gap: 3px;
-            height: 16px;
-        }
-        .mic-btn.recording .sound-waves {
-            display: inline-flex;
-        }
-        .mic-btn.recording .mic-icon-svg {
-            display: none;
-        }
-        .sound-waves span {
-            width: 3px;
-            background-color: var(--accent);
-            border-radius: 99px;
-            animation: soundWave 0.85s infinite ease-in-out;
-        }
-        .sound-waves span:nth-child(1) { height: 6px; animation-delay: 0s; }
-        .sound-waves span:nth-child(2) { height: 14px; animation-delay: 0.15s; }
-        .sound-waves span:nth-child(3) { height: 10px; animation-delay: 0.3s; }
-        .sound-waves span:nth-child(4) { height: 15px; animation-delay: 0.45s; }
-
-        @keyframes soundWave {
-            0%, 100% { transform: scaleY(0.45); opacity: 0.7; }
-            50% { transform: scaleY(1.15); opacity: 1; }
-        }
-
-        .stop-label {
-            display: none;
-            font-size: 12px;
-            font-weight: 600;
-            letter-spacing: 0.2px;
-        }
-        .mic-btn.recording .stop-label {
-            display: inline;
-        }
-
-        /* BOTÓN CIRCULAR DE ENVIAR A LA DERECHA */
+        /* BOTÓN DE ENVIAR */
         .send-btn {
             width: 38px;
             height: 38px;
@@ -373,7 +368,7 @@
             transform: none;
         }
 
-        /* MODALES (OCULTOS POR DEFECTO PARA EVITAR PARPADEO AL INICIAR) */
+        /* MODALES */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -422,11 +417,13 @@
         }
         .google-btn:hover { opacity: 0.9; }
 
-        /* ESTILOS DEL GESTOR DE ATAJOS PERSONALIZABLES */
+        /* EDITOR DE ATAJOS ESTILO NOTION */
         .shortcut-list {
             display: flex;
             flex-direction: column;
             gap: 8px;
+            max-height: 220px;
+            overflow-y: auto;
         }
         .shortcut-item {
             display: flex;
@@ -439,6 +436,18 @@
             border-radius: 10px;
         }
         .shortcut-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 0;
+        }
+        .shortcut-icon-preview {
+            font-size: 18px;
+            width: 28px;
+            text-align: center;
+        }
+        .shortcut-text-group {
             flex: 1;
             min-width: 0;
             text-align: left;
@@ -485,6 +494,10 @@
             color: var(--text-muted);
             font-weight: 500;
         }
+        .form-row {
+            display: flex;
+            gap: 8px;
+        }
         .form-input {
             background: var(--bg-panel);
             border: 1px solid var(--border);
@@ -496,6 +509,11 @@
             font-family: inherit;
         }
         .form-input:focus { border-color: #52525b; }
+        .icon-input {
+            width: 56px;
+            text-align: center;
+            font-size: 18px;
+        }
 
         .modal-footer {
             display: flex;
@@ -526,7 +544,7 @@
 </head>
 <body>
 
-    <!-- MODAL DE ACCESO CON GOOGLE (Nace oculto para no parpadear) -->
+    <!-- MODAL DE ACCESO CON GOOGLE -->
     <div id="auth-modal" class="modal-overlay">
         <div class="modal-card" style="text-align: center;">
             <h2>🔒 JARVIS // AUTH</h2>
@@ -538,14 +556,14 @@
         </div>
     </div>
 
-    <!-- MODAL PARA GESTIONAR MENSAJES PREDEFINIDOS DEL USUARIO -->
+    <!-- MODAL DE GESTIÓN DE ATAJOS (ESTILO NOTION) -->
     <div id="shortcuts-modal" class="modal-overlay">
         <div class="modal-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <h2>⚡ ATAJOS RÁPIDOS</h2>
                 <button class="btn-secondary" onclick="cerrarModalAtajos()" style="padding: 4px 10px;">✕</button>
             </div>
-            <p style="font-size: 12.5px; color: var(--text-muted);">Crea o edita tus propios botones de envío rápido.</p>
+            <p style="font-size: 12.5px; color: var(--text-muted);">Personaliza tus botones de acceso rápido.</p>
 
             <div id="shortcuts-list" class="shortcut-list"></div>
 
@@ -553,13 +571,16 @@
 
             <div class="form-group">
                 <label id="form-shortcut-title">Añadir nuevo atajo</label>
-                <input type="text" id="shortcutLabelInput" class="form-input" placeholder="Etiqueta del botón (ej: 🏋️ Entreno)">
-                <input type="text" id="shortcutPromptInput" class="form-input" placeholder="Mensaje que se enviará (ej: ¿Qué me toca entrenar hoy?)">
+                <div class="form-row">
+                    <input type="text" id="shortcutIconInput" class="form-input icon-input" placeholder="📋" maxlength="4">
+                    <input type="text" id="shortcutLabelInput" class="form-input" style="flex:1;" placeholder="Etiqueta del botón (ej: Resumen del día)">
+                </div>
+                <input type="text" id="shortcutPromptInput" class="form-input" placeholder="Prompt a enviar (ej: ¿Cómo llevo el día?)">
                 <input type="hidden" id="shortcutEditIndex" value="-1">
             </div>
 
             <div class="modal-footer">
-                <button class="btn-secondary" id="cancelEditBtn" onclick="resetFormularioAtajo()" style="display: none;">Cancelar edición</button>
+                <button class="btn-secondary" id="cancelEditBtn" onclick="resetFormularioAtajo()" style="display: none;">Cancelar</button>
                 <button class="btn-primary" onclick="guardarAtajo()">Guardar atajo</button>
             </div>
         </div>
@@ -576,9 +597,7 @@
     </header>
 
     <div class="quick-actions-bar">
-        <div class="quick-actions" id="quick-actions-container">
-            <!-- Se renderiza dinámicamente con los atajos del usuario -->
-        </div>
+        <div class="quick-actions" id="quick-actions-container"></div>
     </div>
     
     <div id="chat-box">
@@ -589,21 +608,25 @@
         <div class="input-area" id="inputArea">
             <textarea id="userInput" rows="1" placeholder="Escribe o habla con Jarvis..."></textarea>
             
+            <!-- Indicador de audio integrado estilo Gemini -->
+            <div class="box-audio-indicator" id="boxAudioIndicator">
+                <div class="gemini-waves">
+                    <span></span><span></span><span></span><span></span>
+                </div>
+                <span id="audioStatusText">Escuchando...</span>
+            </div>
+
             <div class="input-actions">
-                <!-- Botón de Micrófono con ondas estilo Gemini a la derecha -->
+                <!-- Botón de Micrófono -->
                 <button class="mic-btn" id="micBtn" onclick="toggleDictado()" title="Dictar por voz">
-                    <svg class="mic-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
                         <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                         <line x1="12" x2="12" y1="19" y2="22"></line>
                     </svg>
-                    <div class="sound-waves">
-                        <span></span><span></span><span></span><span></span>
-                    </div>
-                    <span class="stop-label">Detener</span>
                 </button>
 
-                <!-- Botón de Enviar a la derecha del micrófono -->
+                <!-- Botón de Enviar -->
                 <button class="send-btn" id="sendBtn" onclick="enviarMensaje()" title="Enviar mensaje">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -628,12 +651,12 @@
         const sendBtn = document.getElementById('sendBtn');
         const micBtn = document.getElementById('micBtn');
         const inputArea = document.getElementById('inputArea');
+        const boxAudioIndicator = document.getElementById('boxAudioIndicator');
 
         const ATAJOS_POR_DEFECTO = [
-            { label: '📋 Resumen del día', prompt: '¿Cómo llevo el día? Dime tareas pendientes, eventos y calorías' }
+            { icon: '📋', label: 'Resumen del día', prompt: '¿Cómo llevo el día? Dime tareas pendientes, eventos y calorías' }
         ];
 
-        // --- AUTO-ALTURA DEL TEXTAREA (MULTILÍNEA ESTILO GEMINI) ---
         function ajustarAlturaInput() {
             userInput.style.height = 'auto';
             userInput.style.height = Math.min(userInput.scrollHeight, 140) + 'px';
@@ -641,7 +664,6 @@
 
         userInput.addEventListener('input', ajustarAlturaInput);
 
-        // En PC Enter envía y Shift+Enter hace salto de línea
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 const esMovil = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -652,7 +674,7 @@
             }
         });
 
-        // --- GESTIÓN DE ATAJOS PERSONALIZADOS POR USUARIO ---
+        // --- GESTIÓN DE ATAJOS ---
         function obtenerClaveStorageAtajos() {
             return `jarvis_shortcuts_${currentUserId}`;
         }
@@ -683,12 +705,11 @@
                 const btn = document.createElement('button');
                 btn.className = 'chip';
                 btn.disabled = isGenerating;
-                btn.textContent = item.label;
+                btn.innerHTML = `${item.icon ? item.icon + ' ' : ''}${item.label}`;
                 btn.onclick = () => enviarRapido(item.prompt);
                 container.appendChild(btn);
             });
 
-            // Botón para añadir o editar atajos
             const manageBtn = document.createElement('button');
             manageBtn.className = 'chip-action';
             manageBtn.innerHTML = '<span>＋ Atajo</span>';
@@ -716,8 +737,11 @@
                 row.className = 'shortcut-item';
                 row.innerHTML = `
                     <div class="shortcut-info">
-                        <div class="shortcut-title">${item.label}</div>
-                        <div class="shortcut-prompt">${item.prompt}</div>
+                        <div class="shortcut-icon-preview">${item.icon || '⚡'}</div>
+                        <div class="shortcut-text-group">
+                            <div class="shortcut-title">${item.label}</div>
+                            <div class="shortcut-prompt">${item.prompt}</div>
+                        </div>
                     </div>
                     <div class="shortcut-item-actions">
                         <button class="mini-btn" onclick="prepararEdicionAtajo(${idx})">Editar</button>
@@ -733,6 +757,7 @@
             const item = atajos[index];
             if (!item) return;
             document.getElementById('form-shortcut-title').textContent = 'Editar atajo';
+            document.getElementById('shortcutIconInput').value = item.icon || '';
             document.getElementById('shortcutLabelInput').value = item.label;
             document.getElementById('shortcutPromptInput').value = item.prompt;
             document.getElementById('shortcutEditIndex').value = String(index);
@@ -741,6 +766,7 @@
 
         function resetFormularioAtajo() {
             document.getElementById('form-shortcut-title').textContent = 'Añadir nuevo atajo';
+            document.getElementById('shortcutIconInput').value = '';
             document.getElementById('shortcutLabelInput').value = '';
             document.getElementById('shortcutPromptInput').value = '';
             document.getElementById('shortcutEditIndex').value = '-1';
@@ -748,17 +774,18 @@
         }
 
         function guardarAtajo() {
+            const icon = document.getElementById('shortcutIconInput').value.trim();
             const label = document.getElementById('shortcutLabelInput').value.trim();
             const prompt = document.getElementById('shortcutPromptInput').value.trim();
             const editIdx = parseInt(document.getElementById('shortcutEditIndex').value, 10);
 
-            if (!label || !prompt) return alert('Rellena tanto el nombre del botón como el mensaje.');
+            if (!label || !prompt) return alert('Rellena la etiqueta y el prompt del atajo.');
 
             const atajos = cargarAtajosUsuario();
             if (editIdx >= 0 && editIdx < atajos.length) {
-                atajos[editIdx] = { label, prompt };
+                atajos[editIdx] = { icon, label, prompt };
             } else {
-                atajos.push({ label, prompt });
+                atajos.push({ icon, label, prompt });
             }
 
             guardarAtajosEnStorage(atajos);
@@ -771,7 +798,6 @@
             guardarAtajosEnStorage(atajos);
         }
 
-        // --- BLOQUEO DE UI MIENTRAS RESPONDE ---
         function setEstadoGenerando(activo) {
             isGenerating = activo;
             userInput.disabled = activo;
@@ -780,7 +806,6 @@
             document.querySelectorAll('.chip').forEach(btn => btn.disabled = activo);
         }
 
-        // --- INICIALIZACIÓN SIN PARPADEO DE LOGIN ---
         async function initApp() {
             renderizarBarraAtajos();
             try {
@@ -833,16 +858,36 @@
             enviarMensaje();
         }
 
+        // --- PROCESAMIENTO INTELIGENTE DE TEXTO (PUNTUACIÓN Y CONTEXTO) ---
+        function procesarTextoVoz(texto) {
+            if (!texto) return '';
+            let limpio = texto.trim();
+            // Capitalizar primera letra
+            limpio = limpio.charAt(0).toUpperCase() + limpio.slice(1);
+            
+            // Añadir puntuación final si no la tiene
+            if (!/[.?!]$/.test(limpio)) {
+                if (/^(cuándo|dónde|cómo|qué|quién|por qué)/i.test(limpio)) {
+                    limpio += '?';
+                } else {
+                    limpio += '.';
+                }
+            }
+            return limpio;
+        }
+
         async function enviarMensaje() {
             if (isGenerating) return;
 
-            // Si estaba el micrófono grabando al darle a enviar, lo detenemos primero
             if (isRecording && recognition) {
                 recognition.stop();
+                isRecording = false;
             }
 
-            const text = userInput.value.trim();
+            let text = userInput.value.trim();
             if (!text) return;
+
+            text = procesarTextoVoz(text);
 
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) {
@@ -897,7 +942,7 @@
             }
         }
 
-        // --- DICTADO POR VOZ EN TIEMPO REAL ESTILO GEMINI (SIN AUTO-ENVÍO) ---
+        // --- RECONOCIMIENTO DE VOZ CORREGIDO PARA MÓVIL (EVITA BUCLES) ---
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition = null;
         let textoBaseAntesDeDictar = '';
@@ -914,14 +959,12 @@
                 if (textoBaseAntesDeDictar) textoBaseAntesDeDictar += ' ';
                 micBtn.classList.add('recording');
                 inputArea.classList.add('listening');
-                userInput.placeholder = 'Escuchando...';
             };
 
             recognition.onend = () => {
                 isRecording = false;
                 micBtn.classList.remove('recording');
                 inputArea.classList.remove('listening');
-                userInput.placeholder = 'Escribe o habla con Jarvis...';
                 ajustarAlturaInput();
                 userInput.focus();
             };
@@ -930,23 +973,15 @@
                 isRecording = false;
                 micBtn.classList.remove('recording');
                 inputArea.classList.remove('listening');
-                userInput.placeholder = 'Escribe o habla con Jarvis...';
             };
 
             recognition.onresult = (event) => {
-                let transcripcionFinal = '';
-                let transcripcionInterina = '';
-
-                for (let i = 0; i < event.results.length; i++) {
-                    const pieza = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        transcripcionFinal += pieza + ' ';
-                    } else {
-                        transcripcionInterina += pieza;
-                    }
+                let transcriptBuffer = '';
+                // Recorremos únicamente el resultado actual para evitar la duplicación en bucle
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcriptBuffer += event.results[i][0].transcript;
                 }
-
-                userInput.value = (textoBaseAntesDeDictar + transcripcionFinal + transcripcionInterina).trimStart();
+                userInput.value = (textoBaseAntesDeDictar + transcriptBuffer).trimStart();
                 ajustarAlturaInput();
                 userInput.scrollTop = userInput.scrollHeight;
             };
@@ -967,7 +1002,6 @@
             }
         }
 
-        // Registrar el Service Worker para habilitar la PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
