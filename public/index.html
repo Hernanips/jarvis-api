@@ -917,6 +917,22 @@
         async function enviarMensaje() {
             if (isGenerating) return;
 
+            // Blindaje: Si supabaseClient por lo que sea sigue null, lo inicializamos de emergencia
+            if (!supabaseClient) {
+                if (typeof supabase !== 'undefined' && localStorage.getItem('jarvis_supa_config')) {
+                    try {
+                        const cfg = JSON.parse(localStorage.getItem('jarvis_supa_config'));
+                        supabaseClient = supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+                    } catch (e) {}
+                }
+            }
+
+            if (!supabaseClient) {
+                authModal.style.display = 'flex';
+                alert('La sesión no está inicializada. Inicia sesión con Google.');
+                return;
+            }
+
             if (isRecording && recognition) {
                 recognition.stop();
                 isRecording = false;
