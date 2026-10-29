@@ -3,15 +3,13 @@ import { assistantTools } from '../src/tools/declarations.js';
 import { ejecutarHerramienta } from '../src/services/executor.js';
 
 export default async function handler(req, res) {
-  // 1. Petición GET: devolver configuración pública de Supabase
   if (req.method === 'GET') {
     return res.status(200).json({
-      supabaseUrl: process.env.SUPABASE_URL,
-      supabaseAnonKey: process.env.SUPABASE_KEY
+      supabaseUrl: (process.env.SUPABASE_URL || '').trim(),
+      supabaseAnonKey: (process.env.SUPABASE_KEY || '').trim()
     });
   }
 
-  // 2. Petición POST: ejecutar el asistente Jarvis
   if (req.method === 'POST') {
     try {
       const authHeader = req.headers['authorization'];
@@ -23,12 +21,13 @@ export default async function handler(req, res) {
       const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
       if (authError || !user) {
-        return res.status(401).json({ error: '🔒 Sesión inválida o caducada.' });
+        return res.status(401).json({ error: `🔒 Sesión caducada (${authError?.message || 'sin usuario'}).` });
       }
 
       const userId = user.id;
       const googleToken = req.headers['x-google-token'] || null;
-      const { message, history = [] } = req.body || {};
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+      const { message, history = [] } = body;
 
       const ahora = new Date();
       const fechaLegible = ahora.toLocaleDateString('es-ES', {
@@ -70,9 +69,7 @@ export default async function handler(req, res) {
 
         const functionResponseParts = [];
         for (const call of response.functionCalls) {
-          console.log(`🔧 Ejecutando herramienta para [${userId}]: ${call.name}`, call.args);
           const resultadoBD = await ejecutarHerramienta(call.name, call.args, userId, googleToken);
-
           functionResponseParts.push({
             functionResponse: {
               name: call.name,
@@ -91,7 +88,6 @@ export default async function handler(req, res) {
       }
 
       return res.status(200).json({ reply: response.text });
-
     } catch (error) {
       console.error("❌ Error crítico en el servidor:", error);
       return res.status(500).json({ error: error.message });
