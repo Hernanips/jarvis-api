@@ -1,9 +1,26 @@
 import { supabase } from '../config/clients.js';
+import { ejecutarAccionGoogle } from './googleApi.js';
 
-export async function ejecutarHerramienta(nombre, args, userId) {
-  const scriptUrl = process.env.GOOGLE_SCRIPT_URL;
+// Calcula el inicio y fin del día en hora exacta de España (Europe/Madrid)
+function obtenerRangoDiaMadrid(fechaStr) {
+  const hoyMadrid = fechaStr || new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+  // Obtenemos el offset dinámico de Madrid (+01:00 en invierno, +02:00 en verano)
+  const fechaRef = new Date(`${hoyMadrid}T12:00:00Z`);
+  const partes = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Madrid',
+    timeZoneName: 'longOffset'
+  }).formatToParts(fechaRef);
+  const offsetTz = (partes.find(p => p.type === 'timeZoneName')?.value || 'GMT+01:00').replace('GMT', '') || '+01:00';
 
-  // 1. ACCIONES DIRECTAS EN GOOGLE APPS SCRIPT (Tasks y Calendar)
+  return {
+    fecha: hoyMadrid,
+    inicioDia: new Date(`${hoyMadrid}T00:00:00.000${offsetTz}`).toISOString(),
+    finDia: new Date(`${hoyMadrid}T23:59:59.999${offsetTz}`).toISOString()
+  };
+}
+
+export async function ejecutarHerramienta(nombre, args, userId, googleToken) {
+  // 1. ACCIONES DIRECTAS EN GOOGLE API OFICIAL (Multiusuario real)
   const accionesDirectas = [
     'crear_lista', 'editar_lista', 'borrar_lista', 'limpiar_completadas',
     'crear_calendario', 'editar_calendario', 'borrar_calendario',
@@ -12,22 +29,7 @@ export async function ejecutarHerramienta(nombre, args, userId) {
   ];
 
   if (accionesDirectas.includes(nombre)) {
-    try {
-      const url = new URL(scriptUrl);
-      url.searchParams.append('accion', nombre);
-      for (const [key, val] of Object.entries(args)) {
-        if (val !== undefined && val !== null) {
-          url.searchParams.append(key, String(val));
-        }
-      }
-      const res = await fetch(url.toString());
-      const datos = await res.json();
-      console.log(`⚡ Google Bridge (${nombre}):`, datos);
-      return datos;
-    } catch (err) {
-      console.error(`❌ Error en ${nombre}:`, err);
-      return { error: `No se pudo ejecutar ${nombre}` };
-    }
+    return await ejecutarAccionGoogle(nombre, args, googleToken);
   }
 
   // 2. REGISTRAR COMIDA EN SUPABASE
@@ -102,11 +104,9 @@ export async function ejecutarHerramienta(nombre, args, userId) {
     return error ? { error: error.message } : { ok: true, comida_eliminada: encontradas[0].description };
   }
 
-  // 5. CONSULTAR COMIDAS POR FECHA
+  // 5. CONSULTAR COMIDAS POR FECHA (Con zona horaria Europe/Madrid corregida)
   if (nombre === 'consultar_comidas') {
-    const fecha = args.date || new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
-    const inicioDia = `${fecha}T00:00:00.000Z`;
-    const finDia = `${fecha}T23:59:59.999Z`;
+    const { fecha, inicioDia, finDia } = obtenerRangoDiaMadrid(args.date);
 
     const { data: comidas, error } = await supabase
       .from('meals')
@@ -164,22 +164,15 @@ export async function ejecutarHerramienta(nombre, args, userId) {
 
   // 8. CONSULTAR ESTADO DEL DÍA (Tasks + Calendarios + Nutrición + Último Peso)
   if (nombre === 'consultar_estado_dia') {
-    let dataG = {};
-    try {
-      const url = new URL(scriptUrl);
-      url.searchParams.append('accion', 'leer_tareas');
-      const resG = await fetch(url.toString());
-      dataG = await resG.json();
-    } catch (e) {
-      console.error("❌ Error leyendo Google Bridge:", e);
-    }
+    const dataG = await ejecutarAccionGoogle('leer_tareas', {}, googleToken);
+    const { fecha: hoy, inicioDia, finDia } = obtenerRangoDiaMadrid();
 
-    const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
     const { data: comidas } = await supabase
       .from('meals')
       .select('id, description, calories, protein_g, carbs_g, fat_g, created_at')
       .eq('user_id', userId)
-      .gte('created_at', `${hoy}T00:00:00.000Z`);
+      .gte('created_at', inicioDia)
+      .lte('created_at', finDia);
 
     const { data: ultimoPeso } = await supabase
       .from('weight_logs')
@@ -206,7 +199,8 @@ export async function ejecutarHerramienta(nombre, args, userId) {
         comidas: listaComidas,
         totales: totalesNutricion
       },
-      ultimo_peso_registrado: ultimoPeso && ultimoPeso.length > 0 ? ultimoPeso[0] : null
+      ultimo_peso_registrado: ultimoPeso && ultimoPeso.length > 0 ? ultimoPeso[0] : null,
+      aviso_google: dataG.error || null
     };
   }
 }

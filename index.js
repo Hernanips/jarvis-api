@@ -23,6 +23,7 @@ app.post('/api/assistant', async (req, res) => {
     }
 
     const userId = user.id; // <-- ID único y seguro del usuario autenticado
+    const googleToken = req.headers['x-google-token'] || null;
 
     const { message, history = [] } = req.body;
 
@@ -69,7 +70,7 @@ app.post('/api/assistant', async (req, res) => {
         console.log(`🔧 Ejecutando herramienta para [${userId}]: ${call.name}`, call.args);
         
         // Pasamos el userId real a las herramientas para aislar los datos en Supabase
-        const resultadoBD = await ejecutarHerramienta(call.name, call.args, userId);
+        const resultadoBD = await ejecutarHerramienta(call.name, call.args, userId, googleToken);
 
         functionResponseParts.push({
           functionResponse: {

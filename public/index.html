@@ -814,9 +814,19 @@
 
                 supabaseClient = supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
 
+                // Escuchar cambios de sesión para guardar el provider_token de Google
+                supabaseClient.auth.onAuthStateChange((_event, session) => {
+                    if (session?.provider_token) {
+                        localStorage.setItem('jarvis_google_token', session.provider_token);
+                    }
+                });
+
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 if (session) {
                     currentUserId = session.user.id;
+                    if (session.provider_token) {
+                        localStorage.setItem('jarvis_google_token', session.provider_token);
+                    }
                     authModal.style.display = 'none';
                     renderizarBarraAtajos();
                 } else {
@@ -827,14 +837,16 @@
             }
         }
 
-        initApp();
-
         async function loginGoogle() {
             if (!supabaseClient) return;
             await supabaseClient.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    scopes: 'https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/calendar'
+                    scopes: 'https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/calendar',
+                    queryParams: {
+                        access_type: 'offline',
+                        prompt: 'consent'
+                    }
                 }
             });
         }
@@ -907,11 +919,14 @@
             chatBox.scrollTop = chatBox.scrollHeight;
 
             try {
+                const googleToken = session.provider_token || localStorage.getItem('jarvis_google_token') || '';
+
                 const res = await fetch('/api/assistant', {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${session.access_token}`
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'X-Google-Token': googleToken
                     },
                     body: JSON.stringify({ message: text, history: historial })
                 });
