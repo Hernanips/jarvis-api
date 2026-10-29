@@ -1,7 +1,7 @@
 import express from 'express';
-import { supabase, ai } from './src/config/clients.js';
-import { assistantTools } from './src/tools/declarations.js';
-import { ejecutarHerramienta } from './src/services/executor.js';
+import { supabase, ai } from '../src/config/clients.js';
+import { assistantTools } from '../src/tools/declarations.js';
+import { ejecutarHerramienta } from '../src/services/executor.js';
 
 const app = express();
 app.use(express.json());
@@ -105,7 +105,4 @@ app.get('/api/config', (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor Jarvis Multi-usuario escuchando en http://localhost:${PORT}`);
-});
+export default app;
