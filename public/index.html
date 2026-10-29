@@ -810,13 +810,27 @@
 
         async function initApp() {
             renderizarBarraAtajos();
+
+            // Asegurarnos de que el script de Supabase cargó correctamente del CDN
+            if (typeof supabase === 'undefined' || !supabase.createClient) {
+                console.error("❌ El SDK de Supabase no se ha cargado desde el CDN.");
+                setTimeout(initApp, 1000); // Reintentar en 1 segundo
+                return;
+            }
+
             try {
+                // Pedimos la config al servidor (ahora en api/index.js)
                 const res = await fetch('/api/config');
+                if (!res.ok) throw new Error(`Error HTTP ${res.status}`);
+                
                 const config = await res.json();
+                
+                if (!config.supabaseUrl || !config.supabaseAnonKey) {
+                    throw new Error("Las claves de Supabase no llegaron desde el servidor.");
+                }
 
                 supabaseClient = supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
 
-                // Escuchar cambios de sesión para guardar el provider_token de Google
                 supabaseClient.auth.onAuthStateChange((_event, session) => {
                     if (session?.provider_token) {
                         localStorage.setItem('jarvis_google_token', session.provider_token);
@@ -834,8 +848,18 @@
                 } else {
                     authModal.style.display = 'flex';
                 }
+                actualizarEstadoConexion('online');
             } catch (e) {
-                console.error("Error al inicializar la app:", e);
+                console.error("❌ Error crítico inicializando Supabase:", e);
+                actualizarEstadoConexion('offline');
+                // Intentar recuperar de caché local de emergencia si falló la red
+                try {
+                    const cachedConfig = JSON.parse(localStorage.getItem('jarvis_supa_config'));
+                    if (cachedConfig) {
+                        supabaseClient = supabase.createClient(cachedConfig.supabaseUrl, cachedConfig.supabaseAnonKey);
+                        authModal.style.display = 'flex';
+                    }
+                } catch (errCache) {}
             }
         }
 
