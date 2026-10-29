@@ -824,8 +824,7 @@
             renderizarBarraAtajos();
 
             if (typeof supabase === 'undefined' || !supabase.createClient) {
-                console.error("❌ El SDK de Supabase no se ha cargado desde el CDN.");
-                setTimeout(initApp, 500);
+                setTimeout(initApp, 300);
                 return;
             }
 
@@ -834,19 +833,24 @@
                 if (!res.ok) throw new Error(`Error HTTP ${res.status} en /api/config`);
                 
                 const config = await res.json();
-                
                 if (!config.supabaseUrl || !config.supabaseAnonKey) {
-                    throw new Error("Faltan SUPABASE_URL o SUPABASE_KEY en las Environment Variables de Vercel.");
+                    throw new Error("Faltan SUPABASE_URL o SUPABASE_KEY en Vercel.");
                 }
 
-                // Guardamos copia en localStorage para arranque instantáneo
                 localStorage.setItem('jarvis_supa_config', JSON.stringify(config));
-
                 supabaseClient = supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
 
+                // Escuchamos cambios de sesión en vivo (cuando vuelve del login de Google)
                 supabaseClient.auth.onAuthStateChange((_event, session) => {
-                    if (session?.provider_token) {
-                        localStorage.setItem('jarvis_google_token', session.provider_token);
+                    if (session) {
+                        currentUserId = session.user.id;
+                        if (session.provider_token) {
+                            localStorage.setItem('jarvis_google_token', session.provider_token);
+                        }
+                        authModal.style.display = 'none';
+                        renderizarBarraAtajos();
+                    } else {
+                        authModal.style.display = 'flex';
                     }
                 });
 

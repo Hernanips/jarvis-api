@@ -6,15 +6,16 @@ import { ejecutarHerramienta } from '../src/services/executor.js';
 const app = express();
 app.use(express.json());
 
-// Ruta para inyectar las credenciales públicas de Supabase de forma segura al frontend
-app.post(['/api/assistant', '/assistant'], async (req, res) => {
+// Cualquier petición GET a /api/config (o a la función en general) devuelve las credenciales públicas
+app.get(/.*/, (req, res) => {
   res.json({
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseAnonKey: process.env.SUPABASE_KEY
   });
 });
 
-app.post('/api/assistant', async (req, res) => {
+// Cualquier petición POST a /api/assistant ejecuta el asistente Jarvis
+app.post(/.*/, async (req, res) => {
   try {
     // 🔒 VERIFICACIÓN DE AUTENTICACIÓN MEDIANTE TOKEN DE SUPABASE
     const authHeader = req.headers['authorization'];
@@ -54,7 +55,7 @@ app.post('/api/assistant', async (req, res) => {
       - REGLA DE ORO: NUNCA crees tareas ni eventos automáticamente a menos que el usuario te lo pida de forma explícita.
       - CLASIFICACIÓN INTELIGENTE MULTIUSUARIO: Cada usuario tiene sus propios calendarios y listas de tareas. Antes de usar 'crear_evento' o 'crear_tarea', si en esta conversación aún no conoces los nombres exactos de los calendarios o listas del usuario, llama PRIMERO a 'consultar_estado_dia' para ver 'calendarios_disponibles_del_usuario' y 'listas_tasks_disponibles_del_usuario'. Analiza la naturaleza de lo que pide y asigna SIEMPRE el calendario o lista existente que mejor encaje.
       - DETALLES Y DESCRIPCIONES: Cuando el usuario pida crear o editar una tarea/evento incluyendo una descripción, nota o detalles adicionales, pasa SIEMPRE ese texto en el parámetro 'description'.
-      - NUTRICIÓN: Si menciona algo que has comido, estima calorías y proteínas y llama a 'registrar_comida'.
+      - NUTRICIÓN: Si menciona algo que ha comido, estima calorías y proteínas y llama a 'registrar_comida'. Si se equivoca o quiere corregir/borrar una comida, usa 'editar_comida' o 'borrar_comida'.
       - Sé directo, breve (2-4 frases máximo) y exigente.
     `;
 
@@ -101,13 +102,6 @@ app.post('/api/assistant', async (req, res) => {
     console.error("❌ Error crítico en el servidor:", error);
     res.status(500).json({ error: error.message });
   }
-});
-
-app.get(['/api/config', '/config'], (req, res) => {
-  res.json({
-    supabaseUrl: process.env.SUPABASE_URL,
-    supabaseAnonKey: process.env.SUPABASE_KEY
-  });
 });
 
 export default app;
