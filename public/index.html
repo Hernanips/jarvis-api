@@ -829,7 +829,7 @@
             }
 
             try {
-                const res = await fetch('/api/config');
+                const res = await fetch('/api');
                 if (!res.ok) throw new Error(`Error HTTP ${res.status} en /api/config`);
                 
                 const config = await res.json();
@@ -987,7 +987,7 @@
             try {
                 const googleToken = session.provider_token || localStorage.getItem('jarvis_google_token') || '';
 
-                const res = await fetch('/api/assistant', {
+                const res = await fetch('/api', {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
