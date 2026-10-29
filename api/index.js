@@ -5,7 +5,14 @@ import { ejecutarHerramienta } from '../src/services/executor.js';
 
 const app = express();
 app.use(express.json());
-app.use(express.static('public'));
+
+// Ruta para inyectar las credenciales públicas de Supabase de forma segura al frontend
+app.get('/api/config', (req, res) => {
+  res.json({
+    supabaseUrl: process.env.SUPABASE_URL,
+    supabaseAnonKey: process.env.SUPABASE_KEY
+  });
+});
 
 app.post('/api/assistant', async (req, res) => {
   try {
@@ -22,7 +29,7 @@ app.post('/api/assistant', async (req, res) => {
       return res.status(401).json({ error: '🔒 Sesión inválida o caducada.' });
     }
 
-    const userId = user.id; // <-- ID único y seguro del usuario autenticado
+    const userId = user.id;
     const googleToken = req.headers['x-google-token'] || null;
 
     const { message, history = [] } = req.body;
@@ -45,9 +52,9 @@ app.post('/api/assistant', async (req, res) => {
       Eres el asistente y tutor estricto del usuario (estilo Jarvis / mentor exigente).
       Hoy es ${fechaLegible} y son las ${horaLegible}.
       - REGLA DE ORO: NUNCA crees tareas ni eventos automáticamente a menos que el usuario te lo pida de forma explícita.
-      - CLASIFICACIÓN INTELIGENTE MULTIUSUARIO: Cada usuario tiene sus propios calendarios y listas de tareas. Antes de usar 'crear_evento' o 'crear_tarea', si en esta conversación aún no conoces los nombres exactos de los calendarios o listas del usuario, llama PRIMERO a 'consultar_estado_dia' para ver 'calendarios_disponibles_del_usuario' y 'listas_tasks_disponibles_del_usuario'. Analiza la naturaleza de lo que pide (ej. un examen, entrega o exposición va al calendario académico/estudios/uni; entrenar o partido va a deporte; etc.) y asigna SIEMPRE el calendario o lista existente que mejor encaje. Nunca lo metas en el general/personal si existe uno temático más específico.
+      - CLASIFICACIÓN INTELIGENTE MULTIUSUARIO: Cada usuario tiene sus propios calendarios y listas de tareas. Antes de usar 'crear_evento' o 'crear_tarea', si en esta conversación aún no conoces los nombres exactos de los calendarios o listas del usuario, llama PRIMERO a 'consultar_estado_dia' para ver 'calendarios_disponibles_del_usuario' y 'listas_tasks_disponibles_del_usuario'. Analiza la naturaleza de lo que pide y asigna SIEMPRE el calendario o lista existente que mejor encaje.
       - DETALLES Y DESCRIPCIONES: Cuando el usuario pida crear o editar una tarea/evento incluyendo una descripción, nota o detalles adicionales, pasa SIEMPRE ese texto en el parámetro 'description'.
-      - NUTRICIÓN: Si menciona algo que ha comido, estima calorías y proteínas y llama a 'registrar_comida'. Si se equivoca o quiere corregir/borrar una comida, usa 'editar_comida' o 'borrar_comida'.
+      - NUTRICIÓN: Si menciona algo que has comido, estima calorías y proteínas y llama a 'registrar_comida'.
       - Sé directo, breve (2-4 frases máximo) y exigente.
     `;
 
@@ -69,7 +76,6 @@ app.post('/api/assistant', async (req, res) => {
       for (const call of response.functionCalls) {
         console.log(`🔧 Ejecutando herramienta para [${userId}]: ${call.name}`, call.args);
         
-        // Pasamos el userId real a las herramientas para aislar los datos en Supabase
         const resultadoBD = await ejecutarHerramienta(call.name, call.args, userId, googleToken);
 
         functionResponseParts.push({
@@ -95,14 +101,6 @@ app.post('/api/assistant', async (req, res) => {
     console.error("❌ Error crítico en el servidor:", error);
     res.status(500).json({ error: error.message });
   }
-});
-
-// Ruta para inyectar las credenciales públicas de Supabase de forma segura al frontend
-app.get('/api/config', (req, res) => {
-  res.json({
-    supabaseUrl: process.env.SUPABASE_URL,
-    supabaseAnonKey: process.env.SUPABASE_KEY
-  });
 });
 
 export default app;
