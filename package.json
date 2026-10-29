@@ -1,14 +1,7 @@
 {
   "name": "jarvis-api",
   "version": "2.0.0",
-  "description": "Jarvis Personal Assistant OS",
-  "main": "api/assistant.js",
-  "scripts": {
-    "start": "node api/assistant.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "private": true,
   "type": "module",
   "dependencies": {
     "@google/genai": "^2.29.1",

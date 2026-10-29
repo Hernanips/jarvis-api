@@ -1,10 +1,6 @@
 {
   "version": 2,
-  "builds": [
-    { "src": "api/assistant.js", "use": "@vercel/node" }
-  ],
   "routes": [
-    { "src": "/api/assistant", "dest": "/api/assistant.js" },
     { "src": "/api/(.*)", "dest": "/api/assistant.js" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]
