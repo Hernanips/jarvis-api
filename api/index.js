@@ -7,7 +7,7 @@ const app = express();
 app.use(express.json());
 
 // Ruta para inyectar las credenciales públicas de Supabase de forma segura al frontend
-app.get('/api/config', (req, res) => {
+app.post(['/api/assistant', '/assistant'], async (req, res) => {
   res.json({
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseAnonKey: process.env.SUPABASE_KEY
@@ -101,6 +101,13 @@ app.post('/api/assistant', async (req, res) => {
     console.error("❌ Error crítico en el servidor:", error);
     res.status(500).json({ error: error.message });
   }
+});
+
+app.get(['/api/config', '/config'], (req, res) => {
+  res.json({
+    supabaseUrl: process.env.SUPABASE_URL,
+    supabaseAnonKey: process.env.SUPABASE_KEY
+  });
 });
 
 export default app;

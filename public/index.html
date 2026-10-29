@@ -808,26 +808,39 @@
             document.querySelectorAll('.chip').forEach(btn => btn.disabled = activo);
         }
 
+        function actualizarEstadoConexion(estado) {
+            const dot = document.querySelector('.status-dot');
+            if (!dot) return;
+            if (estado === 'online') {
+                dot.style.backgroundColor = '#22c55e';
+                dot.style.boxShadow = '0 0 8px #22c55e';
+            } else {
+                dot.style.backgroundColor = '#ef4444';
+                dot.style.boxShadow = '0 0 8px #ef4444';
+            }
+        }
+
         async function initApp() {
             renderizarBarraAtajos();
 
-            // Asegurarnos de que el script de Supabase cargó correctamente del CDN
             if (typeof supabase === 'undefined' || !supabase.createClient) {
                 console.error("❌ El SDK de Supabase no se ha cargado desde el CDN.");
-                setTimeout(initApp, 1000); // Reintentar en 1 segundo
+                setTimeout(initApp, 500);
                 return;
             }
 
             try {
-                // Pedimos la config al servidor (ahora en api/index.js)
                 const res = await fetch('/api/config');
-                if (!res.ok) throw new Error(`Error HTTP ${res.status}`);
+                if (!res.ok) throw new Error(`Error HTTP ${res.status} en /api/config`);
                 
                 const config = await res.json();
                 
                 if (!config.supabaseUrl || !config.supabaseAnonKey) {
-                    throw new Error("Las claves de Supabase no llegaron desde el servidor.");
+                    throw new Error("Faltan SUPABASE_URL o SUPABASE_KEY en las Environment Variables de Vercel.");
                 }
+
+                // Guardamos copia en localStorage para arranque instantáneo
+                localStorage.setItem('jarvis_supa_config', JSON.stringify(config));
 
                 supabaseClient = supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
 
@@ -850,24 +863,26 @@
                 }
                 actualizarEstadoConexion('online');
             } catch (e) {
-                console.error("❌ Error crítico inicializando Supabase:", e);
+                console.error("❌ Error inicializando Supabase:", e);
                 actualizarEstadoConexion('offline');
-                // Intentar recuperar de caché local de emergencia si falló la red
-                try {
-                    const cachedConfig = JSON.parse(localStorage.getItem('jarvis_supa_config'));
-                    if (cachedConfig) {
-                        supabaseClient = supabase.createClient(cachedConfig.supabaseUrl, cachedConfig.supabaseAnonKey);
-                        authModal.style.display = 'flex';
-                    }
-                } catch (errCache) {}
             }
         }
 
+        // ¡ESTA LÍNEA ES LA QUE FALTABA EN TU ARCHIVO!
+        initApp();
+
         async function loginGoogle() {
-            if (!supabaseClient) return;
+            if (!supabaseClient) {
+                await initApp();
+            }
+            if (!supabaseClient) {
+                alert('No se pudo conectar con /api/config. Revisa la consola (F12).');
+                return;
+            }
             await supabaseClient.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
+                    redirectTo: window.location.origin,
                     scopes: 'https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/calendar',
                     queryParams: {
                         access_type: 'offline',
@@ -878,8 +893,13 @@
         }
 
         async function logout() {
-            if (!supabaseClient) return;
-            await supabaseClient.auth.signOut();
+            try {
+                if (supabaseClient) await supabaseClient.auth.signOut();
+            } catch (e) {}
+            localStorage.removeItem('jarvis_google_token');
+            Object.keys(localStorage).forEach(k => {
+                if (k.startsWith('sb-')) localStorage.removeItem(k);
+            });
             location.reload();
         }
 
