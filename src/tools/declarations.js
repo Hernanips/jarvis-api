@@ -280,6 +280,58 @@ export const assistantTools = [
           type: Type.OBJECT,
           properties: {}
         }
+      },
+
+      // --- MEMORIA DE LARGO PLAZO ESTILO CLAUDE (Supabase) ---
+      {
+        name: 'guardar_memoria',
+        description: 'Guarda de forma proactiva y automática en la memoria a largo plazo cualquier hecho relevante sobre el usuario que acabe de mencionar en la conversación (ej: carreras futuras como 8K/5K/Media Maratón, tiempos objetivo, metas de calorías/peso, lesiones, estudios, proyectos, equipamiento o preferencias personales). Úsala por iniciativa propia sin que el usuario tenga que pedirte "guarda esto".',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            category: {
+              type: Type.STRING,
+              description: 'Categoría corta: "objetivos_deporte", "nutricion_salud", "academico_proyectos", "preferencias" o "personal"'
+            },
+            fact: {
+              type: Type.STRING,
+              description: 'Hecho claro, conciso y con fechas absolutas si aplica (ej: "Tiene una carrera de 8K a mediados de noviembre de 2026, busca bajar de 30 min en 5K en enero de 2027 y correr la Media Maratón de Valencia en octubre de 2027")'
+            }
+          },
+          required: ['category', 'fact']
+        }
+      },
+      {
+        name: 'actualizar_memoria',
+        description: 'Modifica un recuerdo o dato existente en la memoria a largo plazo cuando la situación, marca u objetivo del usuario cambia o progresa.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            search_text: {
+              type: Type.STRING,
+              description: 'Palabra clave o fragmento del recuerdo actual que se quiere actualizar (ej: "5K", "Media Maratón", "calorías")'
+            },
+            new_fact: {
+              type: Type.STRING,
+              description: 'Nuevo texto actualizado del recuerdo'
+            }
+          },
+          required: ['search_text', 'new_fact']
+        }
+      },
+      {
+        name: 'olvidar_memoria',
+        description: 'Elimina un recuerdo de la memoria a largo plazo si ya no es válido o el usuario pide que lo olvides.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            search_text: {
+              type: Type.STRING,
+              description: 'Palabra clave del recuerdo a borrar'
+            }
+          },
+          required: ['search_text']
+        }
       }
     ]
   }

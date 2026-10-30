@@ -28,9 +28,8 @@ export default async function handler(req, res) {
       const googleToken = req.headers['x-google-token'] || null;
       const googleRefreshToken = req.headers['x-google-refresh-token'] || null;
 
-      // Guardamos siempre el refresh_token de Google en Supabase cuando llega
       if (googleRefreshToken) {
-        const { error: upsertErr } = await supabase
+        await supabase
           .from('user_google_tokens')
           .upsert(
             {
@@ -40,19 +39,35 @@ export default async function handler(req, res) {
             },
             { onConflict: 'user_id' }
           );
-        if (upsertErr) {
-          console.error('❌ Error guardando en user_google_tokens:', upsertErr.message);
-        }
       }
 
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
 
-      // 1. Ping exclusivo para sincronizar el refresh_token al iniciar sesión
+      // 1. Ping exclusivo para sincronizar el refresh_token
       if (body.syncTokenOnly) {
         return res.status(200).json({ ok: true });
       }
 
-      // 2. Transcripción de voz con puntuación, comas e interrogaciones reales por entonación
+      // 2. Gestión directa del panel visual de Memorias (listar o borrar desde la UI)
+      if (body.mode === 'list_memories') {
+        const { data: mems } = await supabase
+          .from('user_memories')
+          .select('id, category, fact, updated_at')
+          .eq('user_id', userId)
+          .order('updated_at', { ascending: false });
+        return res.status(200).json({ memories: mems || [] });
+      }
+
+      if (body.mode === 'delete_memory' && body.memoryId) {
+        await supabase
+          .from('user_memories')
+          .delete()
+          .eq('id', body.memoryId)
+          .eq('user_id', userId);
+        return res.status(200).json({ ok: true });
+      }
+
+      // 3. Transcripción de voz con puntuación, comas e interrogaciones reales por entonación
       if (body.mode === 'transcribe' && body.audioBase64) {
         const cleanMime = (body.mimeType || 'audio/webm').split(';')[0];
         const transResponse = await ai.models.generateContent({
@@ -80,7 +95,18 @@ export default async function handler(req, res) {
         });
       }
 
-      // 3. Flujo normal de conversación con Jarvis
+      // 4. Cargamos la Memoria a Largo Plazo del usuario (Estilo Claude) antes de hablar con Gemini
+      const { data: memoriasUsuario } = await supabase
+        .from('user_memories')
+        .select('category, fact')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+        .limit(40);
+
+      const bloqueMemoriaTexto = (memoriasUsuario && memoriasUsuario.length > 0)
+        ? memoriasUsuario.map(m => `- [${m.category}] ${m.fact}`).join('\n')
+        : 'Aún no hay recuerdos registrados sobre el usuario.';
+
       const { message, history = [] } = body;
 
       const ahora = new Date();
@@ -100,8 +126,15 @@ export default async function handler(req, res) {
       const systemInstruction = `
         Eres el asistente y tutor estricto del usuario (estilo Jarvis / mentor exigente).
         Hoy es ${fechaLegible} y son las ${horaLegible}.
-        - REGLA DE ORO: NUNCA crees tareas ni eventos automáticamente a menos que el usuario te lo pida de forma explícita.
-        - CLASIFICACIÓN INTELIGENTE MULTIUSUARIO: Cada usuario tiene sus propios calendarios y listas de tareas. Antes de usar 'crear_evento' o 'crear_tarea', si en esta conversación aún no conoces los nombres exactos de los calendarios o listas del usuario, llama PRIMERO a 'consultar_estado_dia' para ver 'calendarios_disponibles_del_usuario' y 'listas_tasks_disponibles_del_usuario'. Analiza la naturaleza de lo que pide y asigna SIEMPRE el calendario o lista existente que mejor encaje.
+
+        === MEMORIA A LARGO PLAZO DEL USUARIO (ESTILO CLAUDE) ===
+        Estos son los objetivos, carreras, contexto personal, metas y datos que ya conoces del usuario de conversaciones pasadas. Úsalos de forma natural cuando tengan relación con lo que te pregunta (sin decir "según mi base de datos"):
+        ${bloqueMemoriaTexto}
+        =========================================================
+
+        - MEMORIA PROACTIVA AUTOMÁTICA: Cuando el usuario mencione en la conversación cualquier dato nuevo relevante sobre su vida, metas deportivas (ej. próximas carreras 5K/8K/Media Maratón, tiempos objetivo, pulsaciones), objetivos físicos/nutricionales, estudios, proyectos o preferencias, llama SIEMPRE por iniciativa propia a 'guardar_memoria' (o a 'actualizar_memoria' si cambia un objetivo que ya estaba en la lista de arriba) ANTES de darle tu respuesta final. Convierte referencias relativas de tiempo ("en dos semanas", "en enero") a fechas concretas sabiendo que hoy es ${fechaLegible}. No hace falta que el usuario te pida "guarda esto".
+        - REGLA DE ORO DE TAREAS/EVENTOS: NUNCA crees tareas en Google Tasks ni eventos en Google Calendar automáticamente a menos que el usuario te lo pida de forma explícita.
+        - CLASIFICACIÓN INTELIGENTE MULTIUSUARIO: Cada usuario tiene sus propios calendarios y listas de tareas. Antes de usar 'crear_evento' o 'crear_tarea', si en esta conversación aún no conoces los nombres exactos de los calendarios o listas del usuario, llama PRIMERO a 'consultar_estado_dia'.
         - DETALLES Y DESCRIPCIONES: Cuando el usuario pida crear o editar una tarea/evento incluyendo una descripción, nota o detalles adicionales, pasa SIEMPRE ese texto en el parámetro 'description'.
         - NUTRICIÓN: Si menciona algo que ha comido, estima calorías y proteínas y llama a 'registrar_comida'. Si se equivoca o quiere corregir/borrar una comida, usa 'editar_comida' o 'borrar_comida'.
         - Sé directo, breve (2-4 frases máximo) y exigente.
@@ -119,12 +152,17 @@ export default async function handler(req, res) {
       });
 
       let refreshedGoogleToken = null;
+      let memorySavedCount = 0;
 
       while (response.functionCalls && response.functionCalls.length > 0) {
         contents.push(response.candidates[0].content);
 
         const functionResponseParts = [];
         for (const call of response.functionCalls) {
+          if (call.name === 'guardar_memoria' || call.name === 'actualizar_memoria') {
+            memorySavedCount++;
+          }
+
           const resultadoBD = await ejecutarHerramienta(
             call.name,
             call.args,
@@ -156,7 +194,8 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         reply: response.text,
-        newGoogleToken: refreshedGoogleToken || null
+        newGoogleToken: refreshedGoogleToken || null,
+        memoryUpdated: memorySavedCount > 0
       });
     } catch (error) {
       console.error("❌ Error crítico en el servidor:", error);

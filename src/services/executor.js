@@ -203,4 +203,70 @@ export async function ejecutarHerramienta(nombre, args, userId, googleToken, goo
       aviso_google: dataG.error || null
     };
   }
+
+  // 9. GUARDAR MEMORIA A LARGO PLAZO (Estilo Claude)
+  if (nombre === 'guardar_memoria') {
+    const { data, error } = await supabase
+      .from('user_memories')
+      .insert([{
+        user_id: userId,
+        category: args.category || 'general',
+        fact: args.fact
+      }])
+      .select();
+
+    return error ? { error: error.message } : { ok: true, memoria_guardada: data[0] };
+  }
+
+  // 10. ACTUALIZAR MEMORIA EXISTENTE
+  if (nombre === 'actualizar_memoria') {
+    const { data: encontradas } = await supabase
+      .from('user_memories')
+      .select('*')
+      .eq('user_id', userId)
+      .ilike('fact', `%${args.search_text}%`)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    if (!encontradas || encontradas.length === 0) {
+      // Si no existía una previa que coincidiera, la creamos directamente
+      const { data, error } = await supabase
+        .from('user_memories')
+        .insert([{ user_id: userId, category: 'general', fact: args.new_fact }])
+        .select();
+      return error ? { error: error.message } : { ok: true, memoria_creada: data[0] };
+    }
+
+    const { data: actualizada, error } = await supabase
+      .from('user_memories')
+      .update({ fact: args.new_fact, updated_at: new Date().toISOString() })
+      .eq('id', encontradas[0].id)
+      .eq('user_id', userId)
+      .select();
+
+    return error ? { error: error.message } : { ok: true, memoria_actualizada: actualizada[0] };
+  }
+
+  // 11. OLVIDAR / BORRAR MEMORIA
+  if (nombre === 'olvidar_memoria') {
+    const { data: encontradas } = await supabase
+      .from('user_memories')
+      .select('*')
+      .eq('user_id', userId)
+      .ilike('fact', `%${args.search_text}%`)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    if (!encontradas || encontradas.length === 0) {
+      return { ok: false, error: `No se encontró ningún recuerdo con "${args.search_text}"` };
+    }
+
+    const { error } = await supabase
+      .from('user_memories')
+      .delete()
+      .eq('id', encontradas[0].id)
+      .eq('user_id', userId);
+
+    return error ? { error: error.message } : { ok: true, memoria_eliminada: encontradas[0].fact };
+  }
 }
