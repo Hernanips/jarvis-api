@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#09090b">
+    <meta name="theme-color" content="#1B1B1B">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,16 +15,14 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
-            --bg-main: #09090b;
-            --bg-panel: #121215;
-            --bg-card: #18181b;
-            --bg-input: #1e1e24;
-            --border: #27272a;
-            --text-main: #fafafa;
-            --text-muted: #a1a1aa;
-            --accent: #ef4444;
-            --gemini-blue: #60a5fa;
-            --gemini-purple: #c084fc;
+            --bg-main: #1B1B1B;
+            --bg-panel: #222222;
+            --bg-card: #262626;
+            --bg-input: #242424;
+            --border: #333333;
+            --text-main: #F1F1F1;
+            --text-muted: #9E9E9E;
+            --accent: #D71921;
         }
 
         * {
@@ -53,7 +51,7 @@
             padding-bottom: 12px;
             padding-left: max(18px, env(safe-area-inset-left, 18px));
             padding-right: max(18px, env(safe-area-inset-right, 18px));
-            background: rgba(12, 12, 15, 0.88);
+            background: rgba(27, 27, 27, 0.92);
             backdrop-filter: blur(16px);
             border-bottom: 1px solid var(--border);
             display: flex;
@@ -81,14 +79,15 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            color: var(--text-main);
         }
 
         .status-dot {
             width: 8px;
             height: 8px;
-            background-color: #22c55e;
+            background-color: var(--text-main);
             border-radius: 50%;
-            box-shadow: 0 0 8px #22c55e;
+            box-shadow: 0 0 6px rgba(241, 241, 241, 0.6);
             transition: all 0.3s ease;
         }
 
@@ -99,11 +98,11 @@
         }
 
         .icon-top-btn {
-            background: transparent;
+            background: var(--bg-card);
             border: 1px solid var(--border);
             color: var(--text-muted);
-            width: 32px;
-            height: 32px;
+            width: 34px;
+            height: 34px;
             border-radius: 8px;
             cursor: pointer;
             display: inline-flex;
@@ -112,29 +111,19 @@
             transition: all 0.15s;
         }
         .icon-top-btn:hover {
-            color: #f87171;
-            border-color: rgba(248, 113, 113, 0.4);
-            background: rgba(248, 113, 113, 0.08);
+            color: var(--text-main);
+            border-color: #555555;
+            background: #2E2E2E;
         }
-
-        .lock-btn {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            height: 32px;
-            padding: 0 11px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.15s;
+        .icon-top-btn.danger:hover {
+            color: var(--accent);
+            border-color: rgba(215, 25, 33, 0.5);
         }
-        .lock-btn:hover { color: var(--text-main); border-color: var(--text-muted); }
 
         /* BARRA DE ATAJOS */
         .quick-actions-bar {
             border-bottom: 1px solid var(--border);
-            background: rgba(9, 9, 11, 0.95);
+            background: var(--bg-main);
             flex-shrink: 0;
             width: 100%;
         }
@@ -155,8 +144,8 @@
         .chip {
             background: var(--bg-card);
             border: 1px solid var(--border);
-            color: var(--text-muted);
-            padding: 7px 14px;
+            color: var(--text-main);
+            padding: 7px 13px;
             border-radius: 999px;
             font-size: 12px;
             font-weight: 500;
@@ -165,14 +154,24 @@
             transition: all 0.15s ease;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 7px;
         }
-        .chip:hover:not(:disabled) { color: var(--text-main); border-color: #52525b; background: #27272a; }
+        .chip svg {
+            width: 14px;
+            height: 14px;
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+        .chip:hover:not(:disabled) {
+            border-color: var(--text-main);
+            background: #2F2F2F;
+        }
+        .chip:hover:not(:disabled) svg { color: var(--text-main); }
         .chip:disabled { opacity: 0.45; cursor: not-allowed; }
 
         .chip-action {
             background: transparent;
-            border: 1px dashed #3f3f46;
+            border: 1px dashed #4A4A4A;
             color: var(--text-muted);
             padding: 6px 12px;
             border-radius: 999px;
@@ -181,10 +180,10 @@
             white-space: nowrap;
             display: inline-flex;
             align-items: center;
-            gap: 4px;
+            gap: 5px;
             transition: all 0.15s;
         }
-        .chip-action:hover { color: var(--text-main); border-color: var(--text-muted); background: var(--bg-card); }
+        .chip-action:hover { color: var(--text-main); border-color: var(--text-main); background: var(--bg-card); }
 
         /* CHAT BOX */
         #chat-box {
@@ -232,7 +231,7 @@
             border-bottom-left-radius: 4px;
         }
 
-        .assistant strong { color: #fff; font-weight: 600; }
+        .assistant strong { color: #FFFFFF; font-weight: 600; }
 
         .typing {
             display: inline-flex;
@@ -259,7 +258,7 @@
             40% { transform: scale(1); opacity: 1; }
         }
 
-        /* BARRA INFERIOR COMPACTA ESTILO GEMINI */
+        /* BARRA INFERIOR NOTHING / GEMINI */
         .input-wrapper {
             padding-top: 10px;
             padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
@@ -288,13 +287,12 @@
         }
 
         .input-area:focus-within {
-            border-color: #52525b;
+            border-color: #555555;
         }
 
         .input-area.listening {
-            background: #14141d;
-            border-color: rgba(96, 165, 250, 0.55);
-            box-shadow: 0 0 20px rgba(96, 165, 250, 0.14);
+            background: #202020;
+            border-color: var(--text-main);
             align-items: center;
         }
 
@@ -315,7 +313,7 @@
             overflow-y: hidden;
         }
         textarea#userInput::placeholder {
-            color: #71717a;
+            color: var(--text-muted);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -334,7 +332,7 @@
             justify-content: space-between;
             gap: 3px;
             height: 38px;
-            padding: 0 6px 0 0;
+            padding: 0 8px 0 0;
             overflow: hidden;
         }
 
@@ -342,14 +340,18 @@
             display: flex;
         }
 
+        /* Todas las barras empiezan en 3px (planas a cero) hasta que hablas */
         .wave-bar {
             flex: 1;
-            max-width: 4px;
-            height: 4px;
+            max-width: 3.5px;
+            height: 3px;
             border-radius: 99px;
-            background: linear-gradient(180deg, var(--gemini-blue), var(--gemini-purple));
-            transition: height 0.05s ease-out;
-            opacity: 0.9;
+            background: var(--text-main);
+            transition: height 0.07s ease-out, opacity 0.1s ease;
+            opacity: 0.35;
+        }
+        .wave-bar.active {
+            opacity: 1;
         }
 
         .input-actions {
@@ -359,7 +361,6 @@
             flex-shrink: 0;
         }
 
-        /* BOTÓN MICRÓFONO / STOP CUADRADO */
         .action-circle-btn {
             background: transparent;
             color: var(--text-muted);
@@ -375,7 +376,7 @@
             flex-shrink: 0;
         }
         .action-circle-btn:hover:not(:disabled) {
-            background: #27272a;
+            background: #303030;
             color: var(--text-main);
         }
         .action-circle-btn:disabled {
@@ -383,16 +384,15 @@
             cursor: not-allowed;
         }
 
-        /* Cuando está grabando, el botón del micro pasa a ser el Stop cuadrado */
+        /* Botón Stop cuadrado cuando está grabando */
         .input-area.listening .action-circle-btn {
-            background: rgba(96, 165, 250, 0.15);
-            color: var(--gemini-blue);
+            background: rgba(215, 25, 33, 0.16);
+            color: var(--accent);
         }
         .input-area.listening .action-circle-btn:hover:not(:disabled) {
-            background: rgba(96, 165, 250, 0.25);
+            background: rgba(215, 25, 33, 0.26);
         }
 
-        /* Botón de Enviar */
         .send-btn {
             width: 38px;
             height: 38px;
@@ -407,14 +407,10 @@
             transition: transform 0.15s, background 0.2s, opacity 0.2s;
             flex-shrink: 0;
         }
-        .input-area.listening .send-btn {
-            background: linear-gradient(135deg, var(--gemini-blue), var(--gemini-purple));
-            color: #09090b;
-        }
-        .send-btn:hover:not(:disabled) { opacity: 0.92; transform: scale(1.04); }
+        .send-btn:hover:not(:disabled) { opacity: 0.9; transform: scale(1.04); }
         .send-btn:disabled {
-            background: #27272a;
-            color: #52525b;
+            background: #303030;
+            color: #666666;
             cursor: not-allowed;
             transform: none;
         }
@@ -423,7 +419,7 @@
         .modal-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(9, 9, 11, 0.92);
+            background: rgba(27, 27, 27, 0.92);
             backdrop-filter: blur(12px);
             display: none;
             align-items: center;
@@ -436,24 +432,25 @@
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 18px;
-            padding: 28px;
+            padding: 24px;
             width: 100%;
-            max-width: 420px;
+            max-width: 440px;
             display: flex;
             flex-direction: column;
-            gap: 18px;
-            max-height: 85vh;
+            gap: 16px;
+            max-height: 88vh;
             overflow-y: auto;
         }
         .modal-card h2 {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 15px;
-            letter-spacing: 1px;
+            font-size: 14px;
+            letter-spacing: 1.5px;
+            color: var(--text-main);
         }
 
         .google-btn {
-            background: #fff;
-            color: #000;
+            background: var(--text-main);
+            color: var(--bg-main);
             border: none;
             border-radius: 10px;
             padding: 12px;
@@ -468,22 +465,22 @@
         }
         .google-btn:hover { opacity: 0.9; }
 
-        /* EDITOR DE ATAJOS */
+        /* LISTA Y REORDENACIÓN DE ATAJOS */
         .shortcut-list {
             display: flex;
             flex-direction: column;
             gap: 8px;
-            max-height: 220px;
+            max-height: 210px;
             overflow-y: auto;
         }
         .shortcut-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 10px;
+            gap: 8px;
             background: var(--bg-panel);
             border: 1px solid var(--border);
-            padding: 10px 12px;
+            padding: 9px 11px;
             border-radius: 10px;
         }
         .shortcut-info {
@@ -494,9 +491,20 @@
             min-width: 0;
         }
         .shortcut-icon-preview {
-            font-size: 18px;
-            width: 28px;
-            text-align: center;
+            width: 30px;
+            height: 30px;
+            border-radius: 7px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            flex-shrink: 0;
+        }
+        .shortcut-icon-preview svg {
+            width: 16px;
+            height: 16px;
         }
         .shortcut-text-group {
             flex: 1;
@@ -521,23 +529,40 @@
         }
         .shortcut-item-actions {
             display: flex;
-            gap: 6px;
+            align-items: center;
+            gap: 4px;
         }
-        .mini-btn {
-            background: #27272a;
-            border: none;
-            color: var(--text-main);
-            padding: 6px 9px;
+        .mini-icon-btn {
+            background: #2E2E2E;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            width: 26px;
+            height: 26px;
             border-radius: 6px;
-            font-size: 11px;
             cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
         }
-        .mini-btn.delete { color: #f87171; }
+        .mini-icon-btn:hover:not(:disabled) {
+            color: var(--text-main);
+            border-color: #555555;
+        }
+        .mini-icon-btn:disabled {
+            opacity: 0.25;
+            cursor: default;
+        }
+        .mini-icon-btn.delete:hover {
+            color: var(--accent);
+            border-color: rgba(215, 25, 33, 0.5);
+        }
 
+        /* SELECTOR DE ICONOS ESTILO VERCEL */
         .form-group {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 8px;
             text-align: left;
         }
         .form-group label {
@@ -548,7 +573,65 @@
         .form-row {
             display: flex;
             gap: 8px;
+            align-items: center;
         }
+        .icon-picker-trigger {
+            width: 42px;
+            height: 40px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-main);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: border-color 0.15s;
+        }
+        .icon-picker-trigger:hover {
+            border-color: var(--text-main);
+        }
+        .icon-picker-trigger svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .icon-picker-panel {
+            display: none;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            padding: 10px;
+            border-radius: 10px;
+        }
+        .icon-picker-panel.open {
+            display: grid;
+        }
+        .icon-option-btn {
+            height: 36px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        .icon-option-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+        .icon-option-btn:hover,
+        .icon-option-btn.selected {
+            color: var(--bg-main);
+            background: var(--text-main);
+            border-color: var(--text-main);
+        }
+
         .form-input {
             background: var(--bg-panel);
             border: 1px solid var(--border);
@@ -559,12 +642,7 @@
             outline: none;
             font-family: inherit;
         }
-        .form-input:focus { border-color: #52525b; }
-        .icon-input {
-            width: 56px;
-            text-align: center;
-            font-size: 18px;
-        }
+        .form-input:focus { border-color: #666666; }
 
         .modal-footer {
             display: flex;
@@ -598,7 +676,7 @@
     <!-- MODAL DE ACCESO CON GOOGLE -->
     <div id="auth-modal" class="modal-overlay">
         <div class="modal-card" style="text-align: center;">
-            <h2>🔒 JARVIS // AUTH</h2>
+            <h2>JARVIS // AUTH</h2>
             <p style="font-size: 13.5px; color: var(--text-muted); line-height: 1.5;">Inicia sesión con tu cuenta de Google para sincronizar tus tareas y base de datos de forma segura.</p>
             <button class="google-btn" onclick="loginGoogle()">
                 <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.13 0-5.78-2.11-6.73-4.96H1.18v3.14C3.15 21.32 7.22 24 12 24z"/><path fill="#FBBC05" d="M5.27 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.62H1.18C.43 8.14 0 9.87 0 11.7c0 1.83.43 3.56 1.18 5.08l4.09-3.14z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.22 0 3.15 2.68 1.18 6.62l4.09 3.14c.95-2.85 3.6-4.96 6.73-4.96z"/></svg>
@@ -607,14 +685,14 @@
         </div>
     </div>
 
-    <!-- MODAL DE GESTIÓN DE ATAJOS -->
+    <!-- MODAL DE GESTIÓN DE ATAJOS CON GALERÍA DE ICONOS SVG -->
     <div id="shortcuts-modal" class="modal-overlay">
         <div class="modal-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2>⚡ ATAJOS RÁPIDOS</h2>
+                <h2>ATAJOS RÁPIDOS</h2>
                 <button class="btn-secondary" onclick="cerrarModalAtajos()" style="padding: 4px 10px;">✕</button>
             </div>
-            <p style="font-size: 12.5px; color: var(--text-muted);">Personaliza tus botones de acceso rápido.</p>
+            <p style="font-size: 12px; color: var(--text-muted);">Reordena o personaliza tus accesos directos.</p>
 
             <div id="shortcuts-list" class="shortcut-list"></div>
 
@@ -623,16 +701,21 @@
             <div class="form-group">
                 <label id="form-shortcut-title">Añadir nuevo atajo</label>
                 <div class="form-row">
-                    <input type="text" id="shortcutIconInput" class="form-input icon-input" placeholder="📋" maxlength="4">
-                    <input type="text" id="shortcutLabelInput" class="form-input" style="flex:1;" placeholder="Etiqueta del botón (ej: Resumen del día)">
+                    <button type="button" class="icon-picker-trigger" id="iconPickerTrigger" onclick="togglePanelIconos()" title="Cambiar icono"></button>
+                    <input type="text" id="shortcutLabelInput" class="form-input" style="flex:1;" placeholder="Nombre (ej: Resumen del día)">
                 </div>
-                <input type="text" id="shortcutPromptInput" class="form-input" placeholder="Prompt a enviar (ej: ¿Cómo llevo el día?)">
+
+                <!-- Panel desplegable con librería de iconos SVG estilo Vercel -->
+                <div id="iconPickerPanel" class="icon-picker-panel"></div>
+
+                <input type="text" id="shortcutPromptInput" class="form-input" placeholder="Instrucción (ej: ¿Cómo llevo el día?)">
+                <input type="hidden" id="shortcutIconKey" value="calendar">
                 <input type="hidden" id="shortcutEditIndex" value="-1">
             </div>
 
             <div class="modal-footer">
                 <button class="btn-secondary" id="cancelEditBtn" onclick="resetFormularioAtajo()" style="display: none;">Cancelar</button>
-                <button class="btn-primary" onclick="guardarAtajo()">Guardar atajo</button>
+                <button class="btn-primary" onclick="guardarAtajo()">Guardar</button>
             </div>
         </div>
     </div>
@@ -644,9 +727,9 @@
                 JARVIS // OS
             </div>
             <div class="header-actions">
-                <!-- Icono SVG minimalista de papelera sin texto -->
-                <button class="icon-top-btn" onclick="limpiarChatLocal()" title="Limpiar chat">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <!-- Papelera SVG -->
+                <button class="icon-top-btn danger" onclick="limpiarChatLocal()" title="Limpiar chat">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 6h18"></path>
                         <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
                         <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
@@ -654,7 +737,14 @@
                         <line x1="14" y1="11" x2="14" y2="17"></line>
                     </svg>
                 </button>
-                <button class="lock-btn" onclick="logout()">Salir</button>
+                <!-- Puerta con flecha hacia afuera SVG (Salir) -->
+                <button class="icon-top-btn" onclick="logout()" title="Cerrar sesión">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                </button>
             </div>
         </div>
     </header>
@@ -668,14 +758,13 @@
     <div class="input-wrapper">
         <div class="input-area" id="inputArea">
             
-            <!-- Caja de texto con placeholder corto que no genera scroll en móvil -->
             <textarea id="userInput" rows="1" placeholder="Mensaje a Jarvis..."></textarea>
 
-            <!-- Hueco exacto del texto ocupado solo por las ondas al hablar -->
+            <!-- Hueco exacto del texto ocupado por las ondas (empiezan a 0 en silencio) -->
             <div class="waveform-slot" id="waveformBars"></div>
 
             <div class="input-actions">
-                <!-- Botón único de Micro (cambia al cuadrado relleno de Stop al hablar) -->
+                <!-- Botón Micro / Stop cuadrado -->
                 <button class="action-circle-btn" id="micBtn" onclick="toggleDictado()" title="Voz">
                     <svg id="micIconSvg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
@@ -701,6 +790,35 @@
         let currentUserId = 'default';
         let isGenerating = false;
         let historial = [];
+
+        // Paquete integrado de 20 iconos vectoriales SVG estilo Vercel/Lucide
+        const ICON_PACK = {
+            calendar: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+            check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+            bolt: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+            flame: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>`,
+            utensils: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>`,
+            dumbbell: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/></svg>`,
+            bike: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>`,
+            book: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`,
+            code: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
+            clock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+            target: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
+            scale: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 16l3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M2 16l3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>`,
+            note: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
+            list: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,
+            sparkles: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z"/></svg>`,
+            sun: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>`,
+            moon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`,
+            cart: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>`,
+            bell: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>`,
+            heart: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>`
+        };
+
+        function obtenerSvgIcono(iconKeyOrEmoji) {
+            if (ICON_PACK[iconKeyOrEmoji]) return ICON_PACK[iconKeyOrEmoji];
+            return ICON_PACK.calendar;
+        }
 
         // Capturar tokens OAuth de la URL al volver de Google
         let tokensOAuthUrl = null;
@@ -733,7 +851,7 @@
         const inputArea = document.getElementById('inputArea');
         const waveformBarsContainer = document.getElementById('waveformBars');
 
-        // Generar 32 barras para rellenar el espacio donde va el texto
+        // Generar las 32 barras que empiezan planas a cero
         const NUM_WAVE_BARS = 32;
         const waveBarElements = [];
         for (let i = 0; i < NUM_WAVE_BARS; i++) {
@@ -744,7 +862,7 @@
         }
 
         const ATAJOS_POR_DEFECTO = [
-            { icon: '📋', label: 'Resumen del día', prompt: '¿Cómo llevo el día? Dime tareas pendientes, eventos y calorías.' }
+            { icon: 'calendar', label: 'Resumen del día', prompt: '¿Cómo llevo el día? Dime tareas pendientes, eventos y calorías.' }
         ];
 
         function ajustarAlturaInput() {
@@ -823,7 +941,7 @@
         }
 
         // =========================================================================
-        // 2. GESTIÓN DE ATAJOS
+        // 2. GESTIÓN DE ATAJOS + SELECTOR DE ICONOS SVG + REORDENAR
         // =========================================================================
         function obtenerClaveStorageAtajos() {
             return `jarvis_shortcuts_${currentUserId}`;
@@ -846,6 +964,34 @@
             renderizarListaModalAtajos();
         }
 
+        function renderizarPanelSelectorIconos() {
+            const panel = document.getElementById('iconPickerPanel');
+            const seleccionado = document.getElementById('shortcutIconKey').value || 'calendar';
+            const trigger = document.getElementById('iconPickerTrigger');
+            trigger.innerHTML = obtenerSvgIcono(seleccionado);
+
+            panel.innerHTML = '';
+            Object.keys(ICON_PACK).forEach(key => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `icon-option-btn ${key === seleccionado ? 'selected' : ''}`;
+                btn.innerHTML = ICON_PACK[key];
+                btn.onclick = () => seleccionarIconoAtajo(key);
+                panel.appendChild(btn);
+            });
+        }
+
+        function togglePanelIconos() {
+            const panel = document.getElementById('iconPickerPanel');
+            panel.classList.toggle('open');
+        }
+
+        function seleccionarIconoAtajo(key) {
+            document.getElementById('shortcutIconKey').value = key;
+            document.getElementById('iconPickerPanel').classList.remove('open');
+            renderizarPanelSelectorIconos();
+        }
+
         function renderizarBarraAtajos() {
             const container = document.getElementById('quick-actions-container');
             const atajos = cargarAtajosUsuario();
@@ -855,7 +1001,7 @@
                 const btn = document.createElement('button');
                 btn.className = 'chip';
                 btn.disabled = isGenerating;
-                btn.innerHTML = `${item.icon ? item.icon + ' ' : ''}${item.label}`;
+                btn.innerHTML = `${obtenerSvgIcono(item.icon)}<span>${item.label}</span>`;
                 btn.onclick = () => enviarRapido(item.prompt);
                 container.appendChild(btn);
             });
@@ -877,6 +1023,16 @@
             shortcutsModal.style.display = 'none';
         }
 
+        function moverAtajo(index, direccion) {
+            const atajos = cargarAtajosUsuario();
+            const nuevoIndex = index + direccion;
+            if (nuevoIndex < 0 || nuevoIndex >= atajos.length) return;
+            const temp = atajos[index];
+            atajos[index] = atajos[nuevoIndex];
+            atajos[nuevoIndex] = temp;
+            guardarAtajosEnStorage(atajos);
+        }
+
         function renderizarListaModalAtajos() {
             const listEl = document.getElementById('shortcuts-list');
             const atajos = cargarAtajosUsuario();
@@ -887,15 +1043,25 @@
                 row.className = 'shortcut-item';
                 row.innerHTML = `
                     <div class="shortcut-info">
-                        <div class="shortcut-icon-preview">${item.icon || '⚡'}</div>
+                        <div class="shortcut-icon-preview">${obtenerSvgIcono(item.icon)}</div>
                         <div class="shortcut-text-group">
                             <div class="shortcut-title">${item.label}</div>
                             <div class="shortcut-prompt">${item.prompt}</div>
                         </div>
                     </div>
                     <div class="shortcut-item-actions">
-                        <button class="mini-btn" onclick="prepararEdicionAtajo(${idx})">Editar</button>
-                        <button class="mini-btn delete" onclick="eliminarAtajo(${idx})">Borrar</button>
+                        <button class="mini-icon-btn" onclick="moverAtajo(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} title="Subir">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="18 15 12 9 6 15"/></svg>
+                        </button>
+                        <button class="mini-icon-btn" onclick="moverAtajo(${idx}, 1)" ${idx === atajos.length - 1 ? 'disabled' : ''} title="Bajar">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <button class="mini-icon-btn" onclick="prepararEdicionAtajo(${idx})" title="Editar">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                        </button>
+                        <button class="mini-icon-btn delete" onclick="eliminarAtajo(${idx})" title="Borrar">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
                     </div>
                 `;
                 listEl.appendChild(row);
@@ -907,29 +1073,32 @@
             const item = atajos[index];
             if (!item) return;
             document.getElementById('form-shortcut-title').textContent = 'Editar atajo';
-            document.getElementById('shortcutIconInput').value = item.icon || '';
+            document.getElementById('shortcutIconKey').value = ICON_PACK[item.icon] ? item.icon : 'calendar';
             document.getElementById('shortcutLabelInput').value = item.label;
             document.getElementById('shortcutPromptInput').value = item.prompt;
             document.getElementById('shortcutEditIndex').value = String(index);
             document.getElementById('cancelEditBtn').style.display = 'inline-block';
+            renderizarPanelSelectorIconos();
         }
 
         function resetFormularioAtajo() {
             document.getElementById('form-shortcut-title').textContent = 'Añadir nuevo atajo';
-            document.getElementById('shortcutIconInput').value = '';
+            document.getElementById('shortcutIconKey').value = 'calendar';
             document.getElementById('shortcutLabelInput').value = '';
             document.getElementById('shortcutPromptInput').value = '';
             document.getElementById('shortcutEditIndex').value = '-1';
             document.getElementById('cancelEditBtn').style.display = 'none';
+            document.getElementById('iconPickerPanel').classList.remove('open');
+            renderizarPanelSelectorIconos();
         }
 
         function guardarAtajo() {
-            const icon = document.getElementById('shortcutIconInput').value.trim();
+            const icon = document.getElementById('shortcutIconKey').value || 'calendar';
             const label = document.getElementById('shortcutLabelInput').value.trim();
             const prompt = document.getElementById('shortcutPromptInput').value.trim();
             const editIdx = parseInt(document.getElementById('shortcutEditIndex').value, 10);
 
-            if (!label || !prompt) return alert('Rellena la etiqueta y el prompt del atajo.');
+            if (!label || !prompt) return alert('Rellena el nombre y la instrucción del atajo.');
 
             const atajos = cargarAtajosUsuario();
             if (editIdx >= 0 && editIdx < atajos.length) {
@@ -960,11 +1129,11 @@
             const dot = document.querySelector('.status-dot');
             if (!dot) return;
             if (estado === 'online') {
-                dot.style.backgroundColor = '#22c55e';
-                dot.style.boxShadow = '0 0 8px #22c55e';
+                dot.style.backgroundColor = '#F1F1F1';
+                dot.style.boxShadow = '0 0 6px rgba(241, 241, 241, 0.6)';
             } else {
-                dot.style.backgroundColor = '#ef4444';
-                dot.style.boxShadow = '0 0 8px #ef4444';
+                dot.style.backgroundColor = '#D71921';
+                dot.style.boxShadow = '0 0 8px #D71921';
             }
         }
 
@@ -1001,6 +1170,7 @@
         async function initApp() {
             renderizarBarraAtajos();
             renderizarChatDesdeStorage();
+            renderizarPanelSelectorIconos();
 
             if (typeof supabase === 'undefined' || !supabase.createClient) {
                 setTimeout(initApp, 300);
@@ -1163,27 +1333,20 @@
         }
 
         // =========================================================================
-        // 5. VOZ ESTILO GEMINI: ONDAS EN EL HUECO DEL TEXTO + STOP CUADRADO
+        // 5. RECONOCIMIENTO DE VOZ SIN CONFLICTO DE HARDWARE + ONDAS DESDE CERO
         // =========================================================================
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition = null;
         let isRecording = false;
         let shouldKeepListening = false;
-        let finalTranscriptAccumulated = '';
-        let interimTranscriptCurrent = '';
-        let liveVoiceBuffer = '';
-
-        let audioCtx = null;
-        let analyserNode = null;
-        let micMediaStream = null;
-        let animFrameId = null;
+        let textoBaseAntesDeSesion = '';
+        let acumuladoEnEstaSesion = '';
+        let decayWaveTimeout = null;
 
         function cambiarIconoBotonMicro(grabando) {
             if (grabando) {
-                // Icono Cuadrado Relleno (Stop estilo Gemini/Audio)
                 micIconSvg.innerHTML = `<rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor" stroke="none"></rect>`;
             } else {
-                // Icono Micrófono normal
                 micIconSvg.innerHTML = `
                     <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
                     <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
@@ -1192,71 +1355,34 @@
             }
         }
 
-        async function iniciarVisualizadorOndasReal() {
-            // Arrancamos de inmediato con animación fluida mientras carga el micrófono
-            iniciarFallbackOndasSuaves();
-            try {
-                if (!micMediaStream) {
-                    micMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                }
-                if (!audioCtx) {
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-                if (audioCtx.state === 'suspended') {
-                    await audioCtx.resume();
-                }
-
-                const source = audioCtx.createMediaStreamSource(micMediaStream);
-                analyserNode = audioCtx.createAnalyser();
-                analyserNode.fftSize = 64;
-                analyserNode.smoothingTimeConstant = 0.72;
-                source.connect(analyserNode);
-
-                const bufferLength = analyserNode.frequencyBinCount;
-                const dataArray = new Uint8Array(bufferLength);
-
-                function renderWaveFrame() {
-                    if (!isRecording) return;
-                    analyserNode.getByteFrequencyData(dataArray);
-
-                    for (let i = 0; i < NUM_WAVE_BARS; i++) {
-                        const distFromCenter = Math.abs(i - NUM_WAVE_BARS / 2);
-                        const freqIdx = Math.min(Math.floor(distFromCenter) + 1, bufferLength - 1);
-                        const valor = dataArray[freqIdx] || 0;
-                        const alturaPx = Math.max(4, Math.min(32, Math.round((valor / 255) * 32)));
-                        waveBarElements[i].style.height = `${alturaPx}px`;
-                    }
-                    animFrameId = requestAnimationFrame(renderWaveFrame);
-                }
-
-                cancelAnimationFrame(animFrameId);
-                renderWaveFrame();
-            } catch (e) {
-                // En Android, si SpeechRecognition ocupa el canal de hardware, mantenemos las ondas dinámicas suaves
-            }
+        // Mantiene todas las barras a 0 (3px) cuando estás en silencio
+        function ponerOndasACero() {
+            clearTimeout(decayWaveTimeout);
+            waveBarElements.forEach(b => {
+                b.style.height = '3px';
+                b.classList.remove('active');
+            });
         }
 
-        function iniciarFallbackOndasSuaves() {
-            function renderFallback() {
-                if (!isRecording) return;
-                const t = Date.now() / 130;
-                for (let i = 0; i < NUM_WAVE_BARS; i++) {
-                    const h = 5 + Math.round((Math.sin(t + i * 0.45) + 1) * 9);
-                    waveBarElements[i].style.height = `${h}px`;
-                }
-                animFrameId = requestAnimationFrame(renderFallback);
-            }
-            cancelAnimationFrame(animFrameId);
-            renderFallback();
-        }
+        // Pulsa las barras proporcionalmente a las palabras que estás diciendo y vuelve a 0 al callarte
+        function impulsarOndasPorVoz(intensidad = 1) {
+            if (!isRecording) return;
+            clearTimeout(decayWaveTimeout);
 
-        function detenerVisualizadorOndasReal() {
-            cancelAnimationFrame(animFrameId);
-            waveBarElements.forEach(b => b.style.height = '4px');
-            if (micMediaStream) {
-                micMediaStream.getTracks().forEach(track => track.stop());
-                micMediaStream = null;
+            const centro = NUM_WAVE_BARS / 2;
+            for (let i = 0; i < NUM_WAVE_BARS; i++) {
+                const dist = Math.abs(i - centro) / centro;
+                const envolvente = Math.max(0.15, 1 - dist * 0.85);
+                const aleatorio = 0.35 + Math.random() * 0.65;
+                const altura = Math.max(4, Math.min(32, Math.round(32 * envolvente * aleatorio * intensidad)));
+                waveBarElements[i].style.height = `${altura}px`;
+                waveBarElements[i].classList.add('active');
             }
+
+            // Si dejas de hablar durante 180ms, las barras vuelven suavemente a cero
+            decayWaveTimeout = setTimeout(() => {
+                ponerOndasACero();
+            }, 180);
         }
 
         if (SpeechRecognition) {
@@ -1265,50 +1391,58 @@
             recognition.continuous = true;
             recognition.interimResults = true;
 
+            recognition.onsoundstart = () => {
+                impulsarOndasPorVoz(0.6);
+            };
+
+            recognition.onsoundend = () => {
+                ponerOndasACero();
+            };
+
             recognition.onresult = (event) => {
-                let nuevoFinal = '';
-                let nuevoInterim = '';
+                impulsarOndasPorVoz(1);
 
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    const pieza = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        nuevoFinal += pieza + ' ';
-                    } else {
-                        nuevoInterim += pieza;
+                let bloqueActual = '';
+                for (let i = 0; i < event.results.length; i++) {
+                    bloqueActual += event.results[i][0].transcript;
+                    if (event.results[i].isFinal && i < event.results.length - 1) {
+                        bloqueActual = bloqueActual.trim() + ', ';
                     }
                 }
 
-                if (nuevoFinal) {
-                    if (
-                        finalTranscriptAccumulated.trim().length > 0 &&
-                        !/[.,;?!]$/.test(finalTranscriptAccumulated.trim())
-                    ) {
-                        finalTranscriptAccumulated = finalTranscriptAccumulated.trim() + ', ' + nuevoFinal.trimStart();
-                    } else {
-                        finalTranscriptAccumulated += nuevoFinal;
-                    }
-                }
-
-                interimTranscriptCurrent = nuevoInterim;
-                liveVoiceBuffer = (finalTranscriptAccumulated + interimTranscriptCurrent).replace(/\s+/g, ' ').trimStart();
-                userInput.value = liveVoiceBuffer;
+                acumuladoEnEstaSesion = bloqueActual.trim();
+                userInput.value = (textoBaseAntesDeSesion + acumuladoEnEstaSesion).replace(/\s+/g, ' ').trimStart();
             };
 
             recognition.onerror = (event) => {
-                if (event.error === 'no-speech') return;
+                if (event.error === 'no-speech') {
+                    ponerOndasACero();
+                    return;
+                }
                 if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-                    detenerGrabacionYMostrarTexto();
+                    detenerGrabacionYVolcarTexto();
                 }
             };
 
             recognition.onend = () => {
-                // Auto-reinicio continuo para que no se corte al hacer pausas al hablar
+                ponerOndasACero();
+                // Si el navegador cortó por silencio pero tú no has parado ni enviado, engancha lo dicho y sigue escuchando
                 if (shouldKeepListening && isRecording) {
+                    if (acumuladoEnEstaSesion) {
+                        textoBaseAntesDeSesion = (textoBaseAntesDeSesion + acumuladoEnEstaSesion).trim();
+                        if (!/[.,;?!]$/.test(textoBaseAntesDeSesion)) {
+                            textoBaseAntesDeSesion += ', ';
+                        } else {
+                            textoBaseAntesDeSesion += ' ';
+                        }
+                        acumuladoEnEstaSesion = '';
+                        userInput.value = textoBaseAntesDeSesion;
+                    }
                     setTimeout(() => {
                         if (shouldKeepListening && isRecording) {
                             try { recognition.start(); } catch (e) {}
                         }
-                    }, 50);
+                    }, 40);
                 }
             };
         }
@@ -1317,38 +1451,43 @@
             if (isGenerating) return;
             if (!recognition) return alert('Tu navegador no soporta dictado por voz.');
 
-            // Partimos del texto que ya hubiera escrito en la caja para seguir añadiendo a partir de ahí
-            finalTranscriptAccumulated = userInput.value.trim();
-            if (finalTranscriptAccumulated) finalTranscriptAccumulated += ' ';
-            interimTranscriptCurrent = '';
-            liveVoiceBuffer = finalTranscriptAccumulated;
+            // Conservamos lo que ya hubiera en la caja de texto para continuar escribiendo a partir de ahí
+            textoBaseAntesDeSesion = userInput.value.trim();
+            if (textoBaseAntesDeSesion) {
+                textoBaseAntesDeSesion += ' ';
+            }
+            acumuladoEnEstaSesion = '';
 
             isRecording = true;
             shouldKeepListening = true;
+            ponerOndasACero();
             inputArea.classList.add('listening');
             cambiarIconoBotonMicro(true);
 
-            try { recognition.start(); } catch (e) {}
-            iniciarVisualizadorOndasReal();
+            try {
+                recognition.start();
+            } catch (e) {
+                try { recognition.stop(); } catch (err) {}
+            }
         }
 
-        function detenerGrabacionYMostrarTexto() {
+        function detenerGrabacionYVolcarTexto() {
             shouldKeepListening = false;
             isRecording = false;
+            ponerOndasACero();
+
             try { if (recognition) recognition.stop(); } catch (e) {}
 
             inputArea.classList.remove('listening');
             cambiarIconoBotonMicro(false);
-            detenerVisualizadorOndasReal();
 
-            // Vuelca todo lo hablado al campo de texto con puntuación pulida
-            const textoCapturado = (liveVoiceBuffer || userInput.value).trim();
-            if (textoCapturado) {
-                userInput.value = procesarTextoVoz(textoCapturado);
-                liveVoiceBuffer = userInput.value;
-                finalTranscriptAccumulated = userInput.value + ' ';
+            const textoBruto = (userInput.value || (textoBaseAntesDeSesion + acumuladoEnEstaSesion)).trim();
+            if (textoBruto) {
+                userInput.value = procesarTextoVoz(textoBruto);
             }
-            interimTranscriptCurrent = '';
+            textoBaseAntesDeSesion = userInput.value ? userInput.value + ' ' : '';
+            acumuladoEnEstaSesion = '';
+
             ajustarAlturaInput();
             userInput.focus();
         }
@@ -1356,34 +1495,30 @@
         function toggleDictado() {
             if (isGenerating) return;
             if (isRecording) {
-                // Si está grabando y pulsa el cuadrado de Stop, cerramos ondas y dejamos el texto escrito en la barra
-                detenerGrabacionYMostrarTexto();
+                detenerGrabacionYVolcarTexto();
             } else {
-                // Si no está grabando, abrimos ondas y seguimos escribiendo a partir de lo que ya haya
                 iniciarGrabacion();
             }
         }
 
         // =========================================================================
-        // 6. ENVÍO DE MENSAJES (FUNCIONA TANTO EN TEXTO COMO DESDE LAS ONDAS)
+        // 6. ENVÍO DE MENSAJES
         // =========================================================================
         async function enviarMensaje() {
             if (isGenerating) return;
 
-            // Si el usuario pulsa Enviar directamente mientras habla con las ondas activas:
             if (isRecording) {
                 shouldKeepListening = false;
                 isRecording = false;
+                ponerOndasACero();
                 try { if (recognition) recognition.stop(); } catch (e) {}
                 inputArea.classList.remove('listening');
                 cambiarIconoBotonMicro(false);
-                detenerVisualizadorOndasReal();
-                // Pequeña espera de 120ms para que el motor de Android entregue la última sílaba
-                await new Promise(r => setTimeout(r, 120));
+                // Damos 150ms para que el último evento onresult de Android termine de llegar
+                await new Promise(r => setTimeout(r, 150));
             }
 
-            // Tomamos el texto de la caja o del buffer en vivo de voz
-            let rawText = (userInput.value || liveVoiceBuffer || finalTranscriptAccumulated).trim();
+            let rawText = (userInput.value || (textoBaseAntesDeSesion + acumuladoEnEstaSesion)).trim();
             if (!rawText) return;
 
             let text = procesarTextoVoz(rawText);
@@ -1405,11 +1540,9 @@
             chatBox.innerHTML += `<div class="message user">${text}</div>`;
             guardarMensajeEnChatLocal('user', text);
 
-            // Limpiamos todos los buffers de voz y texto tras enviar
             userInput.value = '';
-            liveVoiceBuffer = '';
-            finalTranscriptAccumulated = '';
-            interimTranscriptCurrent = '';
+            textoBaseAntesDeSesion = '';
+            acumuladoEnEstaSesion = '';
             ajustarAlturaInput();
 
             const loadingId = 'loading-' + Date.now();
@@ -1434,7 +1567,7 @@
                 const data = await res.json().catch(() => ({}));
 
                 if (res.status === 401) {
-                    chatBox.innerHTML += `<div class="message assistant" style="color: #f87171;">${data.error || 'Sesión expirada. Pulsa en Salir y vuelve a entrar.'}</div>`;
+                    chatBox.innerHTML += `<div class="message assistant" style="color: var(--accent);">${data.error || 'Sesión expirada. Pulsa en Salir y vuelve a entrar.'}</div>`;
                     authModal.style.display = 'flex';
                     setEstadoGenerando(false);
                     return;
@@ -1450,7 +1583,7 @@
 
             } catch (err) {
                 document.getElementById(loadingId)?.remove();
-                chatBox.innerHTML += `<div class="message assistant" style="color: #f87171;">Error de conexión: ${err.message}</div>`;
+                chatBox.innerHTML += `<div class="message assistant" style="color: var(--accent);">Error de conexión: ${err.message}</div>`;
             } finally {
                 setEstadoGenerando(false);
                 chatBox.scrollTop = chatBox.scrollHeight;
