@@ -28,20 +28,60 @@ export default async function handler(req, res) {
       const googleToken = req.headers['x-google-token'] || null;
       const googleRefreshToken = req.headers['x-google-refresh-token'] || null;
 
-      // Si el cliente nos envía un refresh_token de Google, lo guardamos en Supabase para auto-renovar siempre
+      // Guardamos siempre el refresh_token de Google en Supabase cuando llega
       if (googleRefreshToken) {
-        await supabase
+        const { error: upsertErr } = await supabase
           .from('user_google_tokens')
-          .upsert({ user_id: userId, refresh_token: googleRefreshToken, updated_at: new Date().toISOString() });
+          .upsert(
+            {
+              user_id: userId,
+              refresh_token: googleRefreshToken,
+              updated_at: new Date().toISOString()
+            },
+            { onConflict: 'user_id' }
+          );
+        if (upsertErr) {
+          console.error('❌ Error guardando en user_google_tokens:', upsertErr.message);
+        }
       }
 
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-      const { message, history = [] } = body;
 
-      // Si solo era un ping para guardar el refresh_token al iniciar sesión
+      // 1. Ping exclusivo para sincronizar el refresh_token al iniciar sesión
       if (body.syncTokenOnly) {
         return res.status(200).json({ ok: true });
       }
+
+      // 2. Transcripción de voz con puntuación, comas e interrogaciones reales por entonación
+      if (body.mode === 'transcribe' && body.audioBase64) {
+        const cleanMime = (body.mimeType || 'audio/webm').split(';')[0];
+        const transResponse = await ai.models.generateContent({
+          model: 'gemini-3.5-flash-lite',
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: cleanMime,
+                    data: body.audioBase64
+                  }
+                },
+                {
+                  text: 'Transcribe exactamente en español lo que dice este audio. Pon puntuación perfecta y natural: comas, puntos y signos de interrogación (¿?) o exclamación (¡!) según la entonación y el sentido de la frase. NO respondas a la pregunta ni añadas texto extra ni comillas: devuelve ÚNICAMENTE la transcripción limpia. Si solo hay silencio o ruido sin palabras, devuelve exactamente una cadena vacía.'
+                }
+              ]
+            }
+          ]
+        });
+
+        return res.status(200).json({
+          transcript: (transResponse.text || '').trim()
+        });
+      }
+
+      // 3. Flujo normal de conversación con Jarvis
+      const { message, history = [] } = body;
 
       const ahora = new Date();
       const fechaLegible = ahora.toLocaleDateString('es-ES', {

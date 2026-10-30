@@ -320,13 +320,13 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        textarea#userInput:disabled { opacity: 0.5; cursor: not-allowed; }
+        textarea#userInput:disabled { opacity: 0.6; cursor: not-allowed; }
 
+        /* Al grabar ocultamos el textarea y ponemos las 48 barras en su hueco exacto */
         .input-area.listening textarea#userInput {
             display: none;
         }
 
-        /* 48 BARRAS REACTIVAS DE EXTREMO A EXTREMO DEL HUECO DE TEXTO */
         .waveform-slot {
             display: none;
             flex: 1;
@@ -755,7 +755,7 @@
             
             <textarea id="userInput" rows="1" placeholder="Mensaje a Jarvis..."></textarea>
 
-            <!-- 48 barras de lado a lado que leen tu voz en tiempo real -->
+            <!-- 48 barras de extremo a extremo reactivas a tu voz real -->
             <div class="waveform-slot" id="waveformBars"></div>
 
             <div class="input-actions">
@@ -812,7 +812,8 @@
             return ICON_PACK.calendar;
         }
 
-        // Capturar tokens OAuth (incluyendo provider_refresh_token) al volver de Google
+        // 1. CAPTURAR TOKENS DEL HASH Y LIMPIAR LA URL ANTES DE QUE SUPABASE CREE EL CLIENTE
+        // Esto evita al 100% que Supabase consuma dos veces el refresh_token en el móvil
         let tokensOAuthUrl = null;
         if (window.location.hash && window.location.hash.includes('access_token=')) {
             const params = new URLSearchParams(window.location.hash.substring(1));
@@ -820,11 +821,13 @@
             const pRefresh = params.get('provider_refresh_token');
             const aToken = params.get('access_token');
             const rToken = params.get('refresh_token');
+
             if (pToken) localStorage.setItem('jarvis_google_token', pToken);
             if (pRefresh) localStorage.setItem('jarvis_google_refresh_token', pRefresh);
             if (aToken && rToken) {
                 tokensOAuthUrl = { access_token: aToken, refresh_token: rToken };
             }
+            window.history.replaceState(null, '', window.location.pathname);
         }
 
         if ('caches' in window) {
@@ -859,7 +862,6 @@
             { icon: 'calendar', label: 'Resumen del día', prompt: '¿Cómo llevo el día? Dime tareas pendientes, eventos y calorías.' }
         ];
 
-        // Crecimiento vertical automático de la caja de texto (al escribir y al hablar)
         function ajustarAlturaInput() {
             if (!userInput.value) {
                 userInput.style.height = '24px';
@@ -1129,17 +1131,17 @@
         }
 
         // =========================================================================
-        // 3. INICIALIZACIÓN Y SINCRONIZACIÓN SILENCIOSA DEL REFRESH TOKEN
+        // 3. AUTH SUPABASE SIN BUCLES EN MÓVIL + GUARDADO DE REFRESH TOKEN
         // =========================================================================
-        async function sincronizarRefreshTokenEnServidor(session) {
-            const rToken = session?.provider_refresh_token || localStorage.getItem('jarvis_google_refresh_token');
-            if (!rToken || !session?.access_token) return;
+        async function sincronizarRefreshTokenEnServidor(accessToken) {
+            const rToken = localStorage.getItem('jarvis_google_refresh_token');
+            if (!rToken || !accessToken) return;
             try {
                 await fetch('/api', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${session.access_token}`,
+                        'Authorization': `Bearer ${accessToken}`,
                         'X-Google-Refresh-Token': rToken
                     },
                     body: JSON.stringify({ syncTokenOnly: true })
@@ -1153,25 +1155,22 @@
                 auth: {
                     persistSession: true,
                     autoRefreshToken: true,
-                    detectSessionInUrl: true,
-                    lock: async (_name, _acquireTimeout, fn) => await fn()
+                    // false para que createClient NO compita con setSession(tokensOAuthUrl)
+                    detectSessionInUrl: false
                 }
             });
 
             supabaseClient.auth.onAuthStateChange((_event, session) => {
-                currentSession = session || null;
                 if (session) {
+                    currentSession = session;
                     currentUserId = session.user.id;
                     if (session.provider_token) {
                         localStorage.setItem('jarvis_google_token', session.provider_token);
                     }
                     if (session.provider_refresh_token) {
                         localStorage.setItem('jarvis_google_refresh_token', session.provider_refresh_token);
-                        sincronizarRefreshTokenEnServidor(session);
                     }
                     authModal.style.display = 'none';
-                    renderizarBarraAtajos();
-                    renderizarChatDesdeStorage();
                 }
             });
 
@@ -1200,14 +1199,23 @@
                 localStorage.setItem('jarvis_supa_config', JSON.stringify(config));
                 crearClienteSupabase(config.supabaseUrl, config.supabaseAnonKey);
 
+                let session = null;
+
+                // Si venimos de Google OAuth con tokens en la URL, iniciamos sesión una única vez
                 if (tokensOAuthUrl) {
-                    await supabaseClient.auth.setSession(tokensOAuthUrl);
+                    const { data, error } = await supabaseClient.auth.setSession(tokensOAuthUrl);
                     tokensOAuthUrl = null;
-                    window.history.replaceState(null, '', window.location.pathname);
+                    if (!error && data?.session) {
+                        session = data.session;
+                    }
                 }
 
-                const { data: { session } } = await supabaseClient.auth.getSession();
-                currentSession = session || null;
+                if (!session) {
+                    const { data } = await supabaseClient.auth.getSession();
+                    session = data?.session || null;
+                }
+
+                currentSession = session;
 
                 if (session) {
                     currentUserId = session.user.id;
@@ -1217,7 +1225,7 @@
                     if (session.provider_refresh_token) {
                         localStorage.setItem('jarvis_google_refresh_token', session.provider_refresh_token);
                     }
-                    sincronizarRefreshTokenEnServidor(session);
+                    await sincronizarRefreshTokenEnServidor(session.access_token);
                     authModal.style.display = 'none';
                     renderizarBarraAtajos();
                     renderizarChatDesdeStorage();
@@ -1274,67 +1282,6 @@
             window.location.href = window.location.origin;
         }
 
-        // =========================================================================
-        // 4. MOTOR DE PUNTUACIÓN Y DETECCIÓN DE INTERROGACIONES (ESPAÑOL)
-        // =========================================================================
-        function procesarTextoVoz(texto) {
-            if (!texto) return '';
-            let t = texto.replace(/\s+/g, ' ').trim();
-            if (!t) return '';
-
-            t = t
-                .replace(/\b(punto y aparte|punto y seguido)\b/gi, '.')
-                .replace(/\bdos puntos\b/gi, ':')
-                .replace(/\bpunto y coma\b/gi, ';')
-                .replace(/\babrir interrogaci[oó]n\b/gi, '¿')
-                .replace(/\bcerrar interrogaci[oó]n\b/gi, '?');
-
-            t = t.replace(/^(oye jarvis|hola jarvis|jarvis|vale a ver|a ver|vale|bueno|mira|oye|por cierto|escucha)\s+(?=[a-záéíóúñ])/i, (match) => {
-                return match.trim() + ', ';
-            });
-
-            const conectoresConComa = [
-                'pero', 'aunque', 'sin embargo', 'no obstante', 'además',
-                'por cierto', 'es decir', 'o sea', 'por tanto', 'por lo tanto',
-                'así que', 'entonces', 'de hecho', 'en cambio', 'mientras que', 'ya que'
-            ];
-            conectoresConComa.forEach(conector => {
-                const regex = new RegExp(`([^.,;¿?¡!])\\s+\\b(${conector})\\b`, 'gi');
-                t = t.replace(regex, '$1, $2');
-            });
-
-            t = t.replace(/\s+([.,;:?!])/g, '$1').replace(/,+/g, ',');
-
-            let oraciones = t.split(/(?<=[.?!])\s+/);
-            oraciones = oraciones.map(oracion => {
-                let s = oracion.trim();
-                if (!s) return '';
-
-                s = s.charAt(0).toUpperCase() + s.slice(1);
-
-                const patronPreguntaInicio = /^(¿)?(qué|que|cuándo|cuando|dónde|donde|cómo|como|quién|quien|cuánto|cuanto|cuántos|cuantas|cuál|cual|por qué|por que|me puedes decir|dime qué|dime cuánto|sabes si|tengo algún|tengo alguna|hay algún|hay alguna|puedo|podrías|debería)\b/i;
-                const patronPreguntaMitad = /,\s*(y\s+)?(qué|cuándo|dónde|cómo|quién|cuánto|cuántas|cuál|por qué|tengo algún|hay algún|puedo)\b/i;
-
-                const tieneCierre = /[.?!]$/.test(s);
-
-                if (patronPreguntaInicio.test(s)) {
-                    if (!s.startsWith('¿')) s = '¿' + s.charAt(0).toUpperCase() + s.slice(1);
-                    s = s.replace(/[.!]+$/, '') + (s.endsWith('?') ? '' : '?');
-                } else if (patronPreguntaMitad.test(s)) {
-                    s = s.replace(/,\s*((?:y\s+)?(?:qué|cuándo|dónde|cómo|quién|cuánto|cuántas|cuál|por qué|tengo algún|hay algún|puedo)\b.*)/i, (m, sub) => {
-                        const subLimpio = sub.replace(/[.?!]+$/, '');
-                        return `, ¿${subLimpio}?`;
-                    });
-                } else if (!tieneCierre) {
-                    s += '.';
-                }
-
-                return s;
-            });
-
-            return oraciones.join(' ');
-        }
-
         function formatearTexto(texto) {
             return String(texto || '')
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -1350,20 +1297,14 @@
         }
 
         // =========================================================================
-        // 5. VOZ SIN DUPLICADOS + ANALIZADOR REAL DE FRECUENCIAS DE TU VOZ
+        // 4. GRABACIÓN CON LAS 48 ONDAS REALES + TRANSCRIPCIÓN GEMINI (SIN CONFLICTOS)
         // =========================================================================
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        let recognition = null;
         let isRecording = false;
-        let shouldKeepListening = false;
-        let ignoreLateResults = false;
-        let textoConsolidado = '';
-        let tramoEnCurso = '';
-
-        // Analizador Web Audio API en modo pasivo para mover las 48 barras con tu voz real
         let audioCtx = null;
         let analyserNode = null;
         let micStream = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
         let rafWaveId = null;
 
         function ponerBarrasACero() {
@@ -1374,19 +1315,38 @@
             }
         }
 
-        async function iniciarOndasVozReal() {
-            ponerBarrasACero();
+        function cambiarIconoBotonMicro(grabando) {
+            if (grabando) {
+                micIconSvg.innerHTML = `<rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor" stroke="none"></rect>`;
+            } else {
+                micIconSvg.innerHTML = `
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" x2="12" y1="19" y2="22"></line>
+                `;
+            }
+        }
+
+        function blobABase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const res = String(reader.result || '');
+                    const base64 = res.split(',')[1] || '';
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        async function iniciarGrabacion() {
+            if (isGenerating || isRecording) return;
+
             try {
-                if (!micStream) {
-                    // Desactivar filtros DSP evita que Android bloquee SpeechRecognition
-                    micStream = await navigator.mediaDevices.getUserMedia({
-                        audio: {
-                            echoCancellation: false,
-                            noiseSuppression: false,
-                            autoGainControl: false
-                        }
-                    });
-                }
+                // 1. Abrimos el micrófono una única vez para las 48 ondas Y para grabar la voz
+                micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
                 if (!audioCtx) {
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 }
@@ -1400,19 +1360,41 @@
                 analyserNode.smoothingTimeConstant = 0.65;
                 source.connect(analyserNode);
 
+                // 2. Iniciamos MediaRecorder sobre el mismo micStream (no se corta en pausas)
+                audioChunks = [];
+                const recOptions = { audioBitsPerSecond: 32000 };
+                if (window.MediaRecorder) {
+                    if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                        recOptions.mimeType = 'audio/webm;codecs=opus';
+                    } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+                        recOptions.mimeType = 'audio/webm';
+                    } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                        recOptions.mimeType = 'audio/mp4';
+                    }
+                    mediaRecorder = new MediaRecorder(micStream, recOptions);
+                    mediaRecorder.ondataavailable = (e) => {
+                        if (e.data && e.data.size > 0) audioChunks.push(e.data);
+                    };
+                    mediaRecorder.start(200);
+                }
+
+                isRecording = true;
+                ponerBarrasACero();
+                inputArea.classList.add('listening');
+                cambiarIconoBotonMicro(true);
+
+                // 3. Loop en tiempo real de las 48 barras con tu voz real
                 const dataArray = new Uint8Array(analyserNode.frequencyBinCount);
 
                 function loopFrecuencias() {
                     if (!isRecording) return;
                     analyserNode.getByteFrequencyData(dataArray);
 
-                    // Calculamos la energía media para detectar silencio real
                     let suma = 0;
                     for (let j = 1; j < 28; j++) suma += dataArray[j];
                     const promedio = suma / 27;
 
-                    if (promedio < 12) {
-                        // En silencio: todas las barras quietas a 3px
+                    if (promedio < 10) {
                         for (let i = 0; i < NUM_WAVE_BARS; i++) {
                             waveBarElements[i].style.height = '3px';
                             waveBarElements[i].classList.remove('active');
@@ -1420,7 +1402,6 @@
                     } else {
                         const mitad = NUM_WAVE_BARS / 2;
                         for (let i = 0; i < NUM_WAVE_BARS; i++) {
-                            // Distribución simétrica desde el centro hacia ambos extremos
                             const distCentro = Math.abs(i - mitad) / mitad;
                             const binIdx = 1 + Math.floor(distCentro * 24);
                             const val = dataArray[binIdx] || 0;
@@ -1440,159 +1421,105 @@
 
                 loopFrecuencias();
             } catch (err) {
-                // Si en algún dispositivo no permite doble acceso, las barras reaccionan al evento onresult
+                alert('No se pudo acceder al micrófono: ' + err.message);
             }
         }
 
-        function detenerOndasVozReal() {
+        // Cierra las ondas, detiene el micrófono y devuelve el texto transcrito y puntuado por Gemini
+        async function finalizarAudioYTranscribir() {
+            if (!isRecording) return '';
+            isRecording = false;
             ponerBarrasACero();
+            inputArea.classList.remove('listening');
+            cambiarIconoBotonMicro(false);
+
+            const blob = await new Promise((resolve) => {
+                if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                    resolve(null);
+                    return;
+                }
+                const mime = mediaRecorder.mimeType || 'audio/webm';
+                mediaRecorder.onstop = () => {
+                    const b = new Blob(audioChunks, { type: mime });
+                    resolve(b);
+                };
+                try { mediaRecorder.stop(); } catch (e) { resolve(null); }
+            });
+
             if (micStream) {
                 micStream.getTracks().forEach(t => t.stop());
                 micStream = null;
             }
-        }
 
-        function cambiarIconoBotonMicro(grabando) {
-            if (grabando) {
-                micIconSvg.innerHTML = `<rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor" stroke="none"></rect>`;
-            } else {
-                micIconSvg.innerHTML = `
-                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                    <line x1="12" x2="12" y1="19" y2="22"></line>
-                `;
-            }
-        }
+            if (!blob || blob.size < 400) return '';
 
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.lang = 'es-ES';
-            recognition.continuous = false;
-            recognition.interimResults = true;
-
-            recognition.onresult = (event) => {
-                // Si ya se pulsó Stop o Enviar, ignoramos eventos tardíos de Android para jamás duplicar
-                if (ignoreLateResults || !isRecording) return;
-
-                const ultimoIdx = event.results.length - 1;
-                tramoEnCurso = event.results[ultimoIdx][0].transcript.trim();
-
-                const borrador = (textoConsolidado + (textoConsolidado ? ' ' : '') + tramoEnCurso).replace(/\s+/g, ' ').trim();
-                userInput.value = borrador;
-                ajustarAlturaInput();
-            };
-
-            recognition.onerror = (event) => {
-                if (event.error === 'no-speech') return;
-                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-                    detenerGrabacionYVolcarTexto();
-                }
-            };
-
-            recognition.onend = () => {
-                if (ignoreLateResults || !shouldKeepListening || !isRecording) {
-                    return;
-                }
-
-                // Si el usuario hizo una pausa hablando pero sigue grabando, guardamos el tramo una única vez
-                if (tramoEnCurso) {
-                    textoConsolidado = (textoConsolidado + (textoConsolidado ? ', ' : '') + tramoEnCurso).trim();
-                    tramoEnCurso = '';
-                    userInput.value = textoConsolidado;
-                    ajustarAlturaInput();
-                }
-
-                setTimeout(() => {
-                    if (shouldKeepListening && isRecording && !ignoreLateResults) {
-                        try { recognition.start(); } catch (e) {}
-                    }
-                }, 40);
-            };
-        }
-
-        function iniciarGrabacion() {
-            if (isGenerating) return;
-            if (!recognition) return alert('Tu navegador no soporta dictado por voz.');
-
-            ignoreLateResults = false;
-            textoConsolidado = userInput.value.trim();
-            tramoEnCurso = '';
-
-            isRecording = true;
-            shouldKeepListening = true;
-            inputArea.classList.add('listening');
-            cambiarIconoBotonMicro(true);
+            const textoPrevio = userInput.value.trim();
+            const placeholderOriginal = userInput.placeholder;
+            userInput.placeholder = 'Transcribiendo voz...';
+            userInput.disabled = true;
 
             try {
-                recognition.start();
-            } catch (e) {}
+                const audioBase64 = await blobABase64(blob);
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                const sesionActiva = session || currentSession;
+                if (!sesionActiva) return '';
 
-            iniciarOndasVozReal();
+                const res = await fetch('/api', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sesionActiva.access_token}`
+                    },
+                    body: JSON.stringify({
+                        mode: 'transcribe',
+                        audioBase64,
+                        mimeType: blob.type || 'audio/webm'
+                    })
+                });
+
+                const data = await res.json().catch(() => ({}));
+                const nuevoTexto = (data.transcript || '').trim();
+
+                if (nuevoTexto) {
+                    const combinado = textoPrevio ? `${textoPrevio} ${nuevoTexto}` : nuevoTexto;
+                    userInput.value = combinado;
+                }
+            } catch (e) {
+                console.error('Error transcribiendo audio:', e);
+            } finally {
+                userInput.disabled = false;
+                userInput.placeholder = placeholderOriginal;
+                ajustarAlturaInput();
+            }
+
+            return userInput.value.trim();
         }
 
-        function detenerGrabacionYVolcarTexto() {
-            // Activamos cerrojo ANTES de parar para que onend no duplique jamás la frase
-            ignoreLateResults = true;
-            shouldKeepListening = false;
-            isRecording = false;
-
-            try { if (recognition) recognition.stop(); } catch (e) {}
-            detenerOndasVozReal();
-
-            inputArea.classList.remove('listening');
-            cambiarIconoBotonMicro(false);
-
-            const unido = (textoConsolidado + (textoConsolidado && tramoEnCurso ? ' ' : '') + tramoEnCurso).trim();
-            tramoEnCurso = '';
-
-            const textoFinal = procesarTextoVoz(unido || userInput.value);
-            userInput.value = textoFinal;
-            textoConsolidado = textoFinal;
-
-            // Ajustamos la altura vertical de la caja al texto puntuado
-            ajustarAlturaInput();
-            userInput.focus();
-        }
-
-        function toggleDictado() {
+        async function toggleDictado() {
             if (isGenerating) return;
             if (isRecording) {
-                detenerGrabacionYVolcarTexto();
+                await finalizarAudioYTranscribir();
+                userInput.focus();
             } else {
-                iniciarGrabacion();
+                await iniciarGrabacion();
             }
         }
 
         // =========================================================================
-        // 6. ENVÍO DE MENSAJES (LIMPIEZA TOTAL SIN DUPLICADOS)
+        // 5. ENVÍO DE MENSAJES (FUNCIONA DESDE LAS ONDAS O DESDE EL TEXTO)
         // =========================================================================
         async function enviarMensaje() {
             if (isGenerating) return;
 
-            let rawText = '';
-
+            // Si el usuario pulsa Enviar mientras está hablando con las ondas activas, transcribe y envía
             if (isRecording) {
-                ignoreLateResults = true;
-                shouldKeepListening = false;
-                isRecording = false;
-                try { if (recognition) recognition.stop(); } catch (e) {}
-                detenerOndasVozReal();
-                inputArea.classList.remove('listening');
-                cambiarIconoBotonMicro(false);
-
-                rawText = (textoConsolidado + (textoConsolidado && tramoEnCurso ? ' ' : '') + tramoEnCurso).trim();
-            } else {
-                rawText = userInput.value.trim();
+                await finalizarAudioYTranscribir();
             }
 
-            if (!rawText) return;
+            const text = userInput.value.trim();
+            if (!text) return;
 
-            const text = procesarTextoVoz(rawText);
-
-            // Vaciamos inmediatamente todos los buffers y encogemos la caja a 1 línea
             userInput.value = '';
-            textoConsolidado = '';
-            tramoEnCurso = '';
             ajustarAlturaInput();
 
             if (!supabaseClient) {
@@ -1635,7 +1562,6 @@
 
                 const data = await res.json().catch(() => ({}));
 
-                // Si el backend renovó el token de Google en segundo plano, lo actualizamos en localStorage
                 if (data.newGoogleToken) {
                     localStorage.setItem('jarvis_google_token', data.newGoogleToken);
                 }
