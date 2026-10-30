@@ -61,17 +61,18 @@ export default async function handler(req, res) {
             {
               role: 'user',
               parts: [
-                { inlineData: { mimeType: cleanMime, data: body.audioBase64 } },
                 {
-                  text: 'Transcribe exactamente en español este audio con comas, puntos y signos de interrogación (¿?) o exclamación (¡!) según la entonación. Devuelve SOLO la transcripción limpia, sin comillas ni texto adicional. Si no hay voz, devuelve cadena vacía.'
+                  inlineData: {
+                    mimeType: cleanMime,
+                    data: body.audioBase64
+                  }
+                },
+                {
+                  text: 'Transcribe exactamente en español lo que dice este audio. Pon puntuación perfecta y natural: comas, puntos y signos de interrogación (¿?) o exclamación (¡!) según la entonación y el sentido de la frase. NO respondas a la pregunta ni añadas texto extra ni comillas: devuelve ÚNICAMENTE la transcripción limpia. Si solo hay silencio o ruido sin palabras, devuelve exactamente una cadena vacía.'
                 }
               ]
             }
-          ],
-          config: {
-            temperature: 0,
-            thinkingConfig: { thinkingBudget: 0 }
-          }
+          ]
         });
 
         return res.status(200).json({

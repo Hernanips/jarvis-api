@@ -115,10 +115,6 @@
             border-color: #555555;
             background: #2E2E2E;
         }
-        .icon-top-btn.danger:hover {
-            color: var(--nothing-red);
-            border-color: rgba(215, 25, 33, 0.5);
-        }
 
         /* BARRA DE ATAJOS */
         .quick-actions-bar {
@@ -322,7 +318,6 @@
         }
         textarea#userInput:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        /* Al grabar ocultamos el textarea y ponemos las 48 barras en su hueco exacto */
         .input-area.listening textarea#userInput {
             display: none;
         }
@@ -724,15 +719,6 @@
                 JARVIS // OS
             </div>
             <div class="header-actions">
-                <button class="icon-top-btn danger" onclick="limpiarChatLocal()" title="Limpiar chat">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 6h18"></path>
-                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                    </svg>
-                </button>
                 <button class="icon-top-btn" onclick="logout()" title="Cerrar sesión">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -748,7 +734,9 @@
         <div class="quick-actions" id="quick-actions-container"></div>
     </div>
     
-    <div id="chat-box"></div>
+    <div id="chat-box">
+        <div class="message assistant">Sistema online. ¿Qué hemos comido o qué tareas gestionamos hoy?</div>
+    </div>
 
     <div class="input-wrapper">
         <div class="input-area" id="inputArea">
@@ -812,22 +800,22 @@
             return ICON_PACK.calendar;
         }
 
-        // 1. CAPTURAR TOKENS DEL HASH Y LIMPIAR LA URL ANTES DE QUE SUPABASE CREE EL CLIENTE
-        // Esto evita al 100% que Supabase consuma dos veces el refresh_token en el móvil
-        let tokensOAuthUrl = null;
-        if (window.location.hash && window.location.hash.includes('access_token=')) {
-            const params = new URLSearchParams(window.location.hash.substring(1));
+        // Leemos los tokens de Google del hash SIN borrar la URL para que Supabase cree la sesión nativamente
+        const hashOrQuery = window.location.hash.substring(1) || window.location.search.substring(1);
+        if (hashOrQuery) {
+            const params = new URLSearchParams(hashOrQuery);
             const pToken = params.get('provider_token');
             const pRefresh = params.get('provider_refresh_token');
-            const aToken = params.get('access_token');
-            const rToken = params.get('refresh_token');
+            const oauthError = params.get('error_description') || params.get('error');
 
             if (pToken) localStorage.setItem('jarvis_google_token', pToken);
             if (pRefresh) localStorage.setItem('jarvis_google_refresh_token', pRefresh);
-            if (aToken && rToken) {
-                tokensOAuthUrl = { access_token: aToken, refresh_token: rToken };
+
+            if (oauthError) {
+                setTimeout(() => {
+                    alert('Error devuelto por Supabase/Google: ' + decodeURIComponent(oauthError.replace(/\+/g, ' ')));
+                }, 400);
             }
-            window.history.replaceState(null, '', window.location.pathname);
         }
 
         if ('caches' in window) {
@@ -887,58 +875,7 @@
         });
 
         // =========================================================================
-        // 1. PERSISTENCIA LOCAL DEL CHAT
-        // =========================================================================
-        function obtenerClaveChatLocal() {
-            return `jarvis_chat_history_${currentUserId}`;
-        }
-
-        function renderizarChatDesdeStorage() {
-            chatBox.innerHTML = '';
-            try {
-                const guardado = localStorage.getItem(obtenerClaveChatLocal());
-                if (guardado) {
-                    const mensajesGuardados = JSON.parse(guardado);
-                    if (Array.isArray(mensajesGuardados) && mensajesGuardados.length > 0) {
-                        historial = [];
-                        mensajesGuardados.forEach(m => {
-                            const div = document.createElement('div');
-                            div.className = `message ${m.sender === 'user' ? 'user' : 'assistant'}`;
-                            div.innerHTML = m.sender === 'user' ? m.text : formatearTexto(m.text);
-                            chatBox.appendChild(div);
-
-                            historial.push({
-                                role: m.sender === 'user' ? 'user' : 'model',
-                                parts: [{ text: m.text }]
-                            });
-                        });
-                        if (historial.length > 10) historial = historial.slice(-10);
-                        chatBox.scrollTop = chatBox.scrollHeight;
-                        return;
-                    }
-                }
-            } catch (e) {}
-
-            chatBox.innerHTML = `<div class="message assistant">Sistema online. ¿Qué hemos comido o qué tareas gestionamos hoy?</div>`;
-        }
-
-        function guardarMensajeEnChatLocal(sender, text) {
-            try {
-                const clave = obtenerClaveChatLocal();
-                const actual = JSON.parse(localStorage.getItem(clave) || '[]');
-                actual.push({ sender, text, ts: Date.now() });
-                localStorage.setItem(clave, JSON.stringify(actual.slice(-30)));
-            } catch (e) {}
-        }
-
-        function limpiarChatLocal() {
-            localStorage.removeItem(obtenerClaveChatLocal());
-            historial = [];
-            chatBox.innerHTML = `<div class="message assistant">Memoria de conversación limpiada. ¿Qué gestionamos ahora?</div>`;
-        }
-
-        // =========================================================================
-        // 2. GESTIÓN DE ATAJOS + SELECTOR DE ICONOS SVG + REORDENAR
+        // 1. GESTIÓN DE ATAJOS + SELECTOR DE ICONOS SVG + REORDENAR
         // =========================================================================
         function obtenerClaveStorageAtajos() {
             return `jarvis_shortcuts_${currentUserId}`;
@@ -1131,7 +1068,7 @@
         }
 
         // =========================================================================
-        // 3. AUTH SUPABASE SIN BUCLES EN MÓVIL + GUARDADO DE REFRESH TOKEN
+        // 2. AUTH SUPABASE + SINCRONIZACIÓN DE REFRESH TOKEN
         // =========================================================================
         async function sincronizarRefreshTokenEnServidor(accessToken) {
             const rToken = localStorage.getItem('jarvis_google_refresh_token');
@@ -1155,14 +1092,14 @@
                 auth: {
                     persistSession: true,
                     autoRefreshToken: true,
-                    // false para que createClient NO compita con setSession(tokensOAuthUrl)
-                    detectSessionInUrl: false
+                    detectSessionInUrl: true,
+                    lock: async (_name, _acquireTimeout, fn) => await fn()
                 }
             });
 
             supabaseClient.auth.onAuthStateChange((_event, session) => {
+                currentSession = session || null;
                 if (session) {
-                    currentSession = session;
                     currentUserId = session.user.id;
                     if (session.provider_token) {
                         localStorage.setItem('jarvis_google_token', session.provider_token);
@@ -1170,7 +1107,12 @@
                     if (session.provider_refresh_token) {
                         localStorage.setItem('jarvis_google_refresh_token', session.provider_refresh_token);
                     }
+                    sincronizarRefreshTokenEnServidor(session.access_token);
                     authModal.style.display = 'none';
+                    renderizarBarraAtajos();
+                    if (window.location.hash && window.location.hash.includes('access_token=')) {
+                        window.history.replaceState(null, '', window.location.pathname);
+                    }
                 }
             });
 
@@ -1179,7 +1121,6 @@
 
         async function initApp() {
             renderizarBarraAtajos();
-            renderizarChatDesdeStorage();
             renderizarPanelSelectorIconos();
 
             if (typeof supabase === 'undefined' || !supabase.createClient) {
@@ -1199,23 +1140,8 @@
                 localStorage.setItem('jarvis_supa_config', JSON.stringify(config));
                 crearClienteSupabase(config.supabaseUrl, config.supabaseAnonKey);
 
-                let session = null;
-
-                // Si venimos de Google OAuth con tokens en la URL, iniciamos sesión una única vez
-                if (tokensOAuthUrl) {
-                    const { data, error } = await supabaseClient.auth.setSession(tokensOAuthUrl);
-                    tokensOAuthUrl = null;
-                    if (!error && data?.session) {
-                        session = data.session;
-                    }
-                }
-
-                if (!session) {
-                    const { data } = await supabaseClient.auth.getSession();
-                    session = data?.session || null;
-                }
-
-                currentSession = session;
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                currentSession = session || null;
 
                 if (session) {
                     currentUserId = session.user.id;
@@ -1225,10 +1151,9 @@
                     if (session.provider_refresh_token) {
                         localStorage.setItem('jarvis_google_refresh_token', session.provider_refresh_token);
                     }
-                    await sincronizarRefreshTokenEnServidor(session.access_token);
+                    sincronizarRefreshTokenEnServidor(session.access_token);
                     authModal.style.display = 'none';
                     renderizarBarraAtajos();
-                    renderizarChatDesdeStorage();
                 } else {
                     authModal.style.display = 'flex';
                 }
@@ -1297,7 +1222,7 @@
         }
 
         // =========================================================================
-        // 4. GRABACIÓN CON LAS 48 ONDAS REALES + TRANSCRIPCIÓN GEMINI (SIN CONFLICTOS)
+        // 3. GRABACIÓN CON LAS 48 ONDAS REALES + TRANSCRIPCIÓN GEMINI
         // =========================================================================
         let isRecording = false;
         let audioCtx = null;
@@ -1344,10 +1269,7 @@
             if (isGenerating || isRecording) return;
 
             try {
-                // 1. Abrimos el micrófono una única vez para las 48 ondas Y para grabar la voz
-                micStream = await navigator.mediaDevices.getUserMedia({
-                    audio: { channelCount: 1, sampleRate: 16000 }
-                });
+                micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
                 if (!audioCtx) {
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1362,9 +1284,8 @@
                 analyserNode.smoothingTimeConstant = 0.65;
                 source.connect(analyserNode);
 
-                // 2. Iniciamos MediaRecorder sobre el mismo micStream (no se corta en pausas)
                 audioChunks = [];
-                const recOptions = { audioBitsPerSecond: 16000 };
+                const recOptions = { audioBitsPerSecond: 32000 };
                 if (window.MediaRecorder) {
                     if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
                         recOptions.mimeType = 'audio/webm;codecs=opus';
@@ -1385,7 +1306,6 @@
                 inputArea.classList.add('listening');
                 cambiarIconoBotonMicro(true);
 
-                // 3. Loop en tiempo real de las 48 barras con tu voz real
                 const dataArray = new Uint8Array(analyserNode.frequencyBinCount);
 
                 function loopFrecuencias() {
@@ -1427,7 +1347,6 @@
             }
         }
 
-        // Cierra las ondas, detiene el micrófono y devuelve el texto transcrito y puntuado por Gemini
         async function finalizarAudioYTranscribir() {
             if (!isRecording) return '';
             isRecording = false;
@@ -1453,7 +1372,7 @@
                 micStream = null;
             }
 
-            if (!blob || blob.size < 400) return '';
+            if (!blob || blob.size === 0) return '';
 
             const textoPrevio = userInput.value.trim();
             const placeholderOriginal = userInput.placeholder;
@@ -1508,12 +1427,11 @@
         }
 
         // =========================================================================
-        // 5. ENVÍO DE MENSAJES (FUNCIONA DESDE LAS ONDAS O DESDE EL TEXTO)
+        // 4. ENVÍO DE MENSAJES
         // =========================================================================
         async function enviarMensaje() {
             if (isGenerating) return;
 
-            // Si el usuario pulsa Enviar mientras está hablando con las ondas activas, transcribe y envía
             if (isRecording) {
                 await finalizarAudioYTranscribir();
             }
@@ -1539,7 +1457,6 @@
             setEstadoGenerando(true);
 
             chatBox.innerHTML += `<div class="message user">${text}</div>`;
-            guardarMensajeEnChatLocal('user', text);
 
             const loadingId = 'loading-' + Date.now();
             chatBox.innerHTML += `<div class="typing" id="${loadingId}"><span></span><span></span><span></span></div>`;
@@ -1577,7 +1494,6 @@
 
                 const reply = data.reply || data.error || 'Sin respuesta del servidor.';
                 chatBox.innerHTML += `<div class="message assistant">${formatearTexto(reply)}</div>`;
-                guardarMensajeEnChatLocal('assistant', reply);
                 
                 historial.push({ role: 'user', parts: [{ text }] });
                 historial.push({ role: 'model', parts: [{ text: reply }] });
