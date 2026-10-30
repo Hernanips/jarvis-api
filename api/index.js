@@ -21,13 +21,27 @@ export default async function handler(req, res) {
       const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
       if (authError || !user) {
-        return res.status(401).json({ error: `🔒 Sesión caducada (${authError?.message || 'sin usuario'}).` });
+        return res.status(401).json({ error: '🔒 Sesión inválida o caducada.' });
       }
 
       const userId = user.id;
       const googleToken = req.headers['x-google-token'] || null;
+      const googleRefreshToken = req.headers['x-google-refresh-token'] || null;
+
+      // Si el cliente nos envía un refresh_token de Google, lo guardamos en Supabase para auto-renovar siempre
+      if (googleRefreshToken) {
+        await supabase
+          .from('user_google_tokens')
+          .upsert({ user_id: userId, refresh_token: googleRefreshToken, updated_at: new Date().toISOString() });
+      }
+
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
       const { message, history = [] } = body;
+
+      // Si solo era un ping para guardar el refresh_token al iniciar sesión
+      if (body.syncTokenOnly) {
+        return res.status(200).json({ ok: true });
+      }
 
       const ahora = new Date();
       const fechaLegible = ahora.toLocaleDateString('es-ES', {
@@ -64,12 +78,25 @@ export default async function handler(req, res) {
         config: { systemInstruction, tools: assistantTools }
       });
 
+      let refreshedGoogleToken = null;
+
       while (response.functionCalls && response.functionCalls.length > 0) {
         contents.push(response.candidates[0].content);
 
         const functionResponseParts = [];
         for (const call of response.functionCalls) {
-          const resultadoBD = await ejecutarHerramienta(call.name, call.args, userId, googleToken);
+          const resultadoBD = await ejecutarHerramienta(
+            call.name,
+            call.args,
+            userId,
+            refreshedGoogleToken || googleToken,
+            googleRefreshToken
+          );
+
+          if (resultadoBD && resultadoBD._newGoogleAccessToken) {
+            refreshedGoogleToken = resultadoBD._newGoogleAccessToken;
+          }
+
           functionResponseParts.push({
             functionResponse: {
               name: call.name,
@@ -87,7 +114,10 @@ export default async function handler(req, res) {
         });
       }
 
-      return res.status(200).json({ reply: response.text });
+      return res.status(200).json({
+        reply: response.text,
+        newGoogleToken: refreshedGoogleToken || null
+      });
     } catch (error) {
       console.error("❌ Error crítico en el servidor:", error);
       return res.status(500).json({ error: error.message });

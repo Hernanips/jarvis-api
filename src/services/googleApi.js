@@ -1,7 +1,8 @@
+import { supabase } from '../config/clients.js';
+
 const CAL_BASE = 'https://www.googleapis.com/calendar/v3';
 const TASKS_BASE = 'https://www.googleapis.com/tasks/v1';
 
-// Normalizador para ignorar tildes y mayúsculas ("Académico" == "academico")
 function normalizar(texto) {
   return (texto || '')
     .toString()
@@ -11,39 +12,104 @@ function normalizar(texto) {
     .trim();
 }
 
-async function gFetch(url, token, options = {}) {
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...(options.headers || {})
+// Renueva el access_token de Google automáticamente usando el refresh_token guardado
+async function renovarTokenGoogleSilencioso(userId, refreshTokenDirecto) {
+  try {
+    let refreshToken = refreshTokenDirecto;
+
+    if (!refreshToken && userId) {
+      const { data } = await supabase
+        .from('user_google_tokens')
+        .select('refresh_token')
+        .eq('user_id', userId)
+        .single();
+      if (data?.refresh_token) refreshToken = data.refresh_token;
     }
-  });
-  if (res.status === 204) return {};
-  const data = await res.json().catch(() => ({}));
-  if (res.status === 401 || res.status === 403) {
-    throw new Error('GOOGLE_TOKEN_EXPIRED');
+
+    if (!refreshToken || !process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return null;
+    }
+
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: process.env.GOOGLE_CLIENT_ID.trim(),
+        client_secret: process.env.GOOGLE_CLIENT_SECRET.trim(),
+        refresh_token: refreshToken.trim(),
+        grant_type: 'refresh_token'
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.access_token) {
+      console.log('🔄 Token de Google renovado automáticamente en segundo plano.');
+      return data.access_token;
+    }
+    return null;
+  } catch (e) {
+    console.error('Error renovando token de Google:', e.message);
+    return null;
   }
-  if (!res.ok) {
-    throw new Error(data.error?.message || `Error Google API (${res.status})`);
-  }
-  return data;
 }
 
-export async function ejecutarAccionGoogle(accion, args, googleToken) {
-  if (!googleToken) {
+export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, userId = null, googleRefreshToken = null) {
+  let activeToken = googleTokenInicial;
+  let tokenRenovadoEnEstaLlamada = null;
+
+  // Si no hay token inicial, intentamos sacarlo directamente con el refresh_token
+  if (!activeToken) {
+    activeToken = await renovarTokenGoogleSilencioso(userId, googleRefreshToken);
+    tokenRenovadoEnEstaLlamada = activeToken;
+  }
+
+  if (!activeToken) {
     return {
       ok: false,
-      error: 'Tu sesión de Google ha expirado o no tiene permisos. Pulsa en "Cerrar sesión" arriba a la derecha y vuelve a entrar con Google.'
+      error: 'Falta vincular el token offline de Google. Cierra sesión y entra una vez más con Google.'
     };
+  }
+
+  async function gFetch(url, _unused, options = {}) {
+    let res = await fetch(url, {
+      ...options,
+      headers: {
+        'Authorization': `Bearer ${activeToken}`,
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      }
+    });
+
+    // Si el token de 1 hora acaba de caducar (401), lo renovamos al vuelo y repetimos la petición sin fallar
+    if (res.status === 401) {
+      const nuevo = await renovarTokenGoogleSilencioso(userId, googleRefreshToken);
+      if (nuevo) {
+        activeToken = nuevo;
+        tokenRenovadoEnEstaLlamada = nuevo;
+        res = await fetch(url, {
+          ...options,
+          headers: {
+            'Authorization': `Bearer ${activeToken}`,
+            'Content-Type': 'application/json',
+            ...(options.headers || {})
+          }
+        });
+      }
+    }
+
+    if (res.status === 204) return {};
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error?.message || `Error Google API (${res.status})`);
+    }
+    return data;
   }
 
   try {
     // Cargamos listas de Tasks y Calendarios del usuario autenticado
     const [listasRes, calsRes] = await Promise.all([
-      gFetch(`${TASKS_BASE}/users/@me/lists?maxResults=100`, googleToken),
-      gFetch(`${CAL_BASE}/users/me/calendarList`, googleToken)
+      gFetch(`${TASKS_BASE}/users/@me/lists?maxResults=100`, activeToken),
+      gFetch(`${CAL_BASE}/users/me/calendarList`, activeToken)
     ]);
 
     const todasLasListas = listasRes.items || [];

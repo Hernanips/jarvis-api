@@ -19,7 +19,7 @@ function obtenerRangoDiaMadrid(fechaStr) {
   };
 }
 
-export async function ejecutarHerramienta(nombre, args, userId, googleToken) {
+export async function ejecutarHerramienta(nombre, args, userId, googleToken, googleRefreshToken = null) {
   // 1. ACCIONES DIRECTAS EN GOOGLE API OFICIAL (Multiusuario real)
   const accionesDirectas = [
     'crear_lista', 'editar_lista', 'borrar_lista', 'limpiar_completadas',
@@ -29,7 +29,7 @@ export async function ejecutarHerramienta(nombre, args, userId, googleToken) {
   ];
 
   if (accionesDirectas.includes(nombre)) {
-    return await ejecutarAccionGoogle(nombre, args, googleToken);
+    return await ejecutarAccionGoogle(nombre, args, googleToken, userId, googleRefreshToken);
   }
 
   // 2. REGISTRAR COMIDA EN SUPABASE
@@ -164,7 +164,7 @@ export async function ejecutarHerramienta(nombre, args, userId, googleToken) {
 
   // 8. CONSULTAR ESTADO DEL DÍA (Tasks + Calendarios + Nutrición + Último Peso)
   if (nombre === 'consultar_estado_dia') {
-    const dataG = await ejecutarAccionGoogle('leer_tareas', {}, googleToken);
+    const dataG = await ejecutarAccionGoogle('leer_tareas', {}, googleToken, userId, googleRefreshToken);
     const { fecha: hoy, inicioDia, finDia } = obtenerRangoDiaMadrid();
 
     const { data: comidas } = await supabase
