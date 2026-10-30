@@ -1345,7 +1345,9 @@
 
             try {
                 // 1. Abrimos el micrófono una única vez para las 48 ondas Y para grabar la voz
-                micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                micStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { channelCount: 1, sampleRate: 16000 }
+                });
 
                 if (!audioCtx) {
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1362,7 +1364,7 @@
 
                 // 2. Iniciamos MediaRecorder sobre el mismo micStream (no se corta en pausas)
                 audioChunks = [];
-                const recOptions = { audioBitsPerSecond: 32000 };
+                const recOptions = { audioBitsPerSecond: 16000 };
                 if (window.MediaRecorder) {
                     if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
                         recOptions.mimeType = 'audio/webm;codecs=opus';
