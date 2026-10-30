@@ -22,6 +22,9 @@ async function gFetch(url, token, options = {}) {
   });
   if (res.status === 204) return {};
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 || res.status === 403) {
+    throw new Error('GOOGLE_TOKEN_EXPIRED');
+  }
   if (!res.ok) {
     throw new Error(data.error?.message || `Error Google API (${res.status})`);
   }
@@ -545,6 +548,13 @@ export async function ejecutarAccionGoogle(accion, args, googleToken) {
     return { ok: false, error: 'Acción no reconocida' };
   } catch (err) {
     console.error(`❌ Error Google API (${accion}):`, err.message);
+    if (err.message === 'GOOGLE_TOKEN_EXPIRED') {
+      return {
+        ok: false,
+        google_expired: true,
+        error: 'GOOGLE_TOKEN_EXPIRED: El token de Google ha caducado (dura 1h).'
+      };
+    }
     return { ok: false, error: err.message };
   }
 }

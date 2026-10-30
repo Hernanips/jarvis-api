@@ -22,7 +22,7 @@
             --border: #333333;
             --text-main: #F1F1F1;
             --text-muted: #9E9E9E;
-            --accent: #D71921;
+            --nothing-red: #D71921;
         }
 
         * {
@@ -82,12 +82,13 @@
             color: var(--text-main);
         }
 
+        /* Circulito en Rojo Nothing (#D71921) */
         .status-dot {
             width: 8px;
             height: 8px;
-            background-color: var(--text-main);
+            background-color: var(--nothing-red);
             border-radius: 50%;
-            box-shadow: 0 0 6px rgba(241, 241, 241, 0.6);
+            box-shadow: 0 0 8px rgba(215, 25, 33, 0.85);
             transition: all 0.3s ease;
         }
 
@@ -116,7 +117,7 @@
             background: #2E2E2E;
         }
         .icon-top-btn.danger:hover {
-            color: var(--accent);
+            color: var(--nothing-red);
             border-color: rgba(215, 25, 33, 0.5);
         }
 
@@ -233,6 +234,21 @@
 
         .assistant strong { color: #FFFFFF; font-weight: 600; }
 
+        .reconnect-inline-btn {
+            margin-top: 10px;
+            background: var(--nothing-red);
+            color: #F1F1F1;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
         .typing {
             display: inline-flex;
             gap: 5px;
@@ -258,7 +274,7 @@
             40% { transform: scale(1); opacity: 1; }
         }
 
-        /* BARRA INFERIOR NOTHING / GEMINI */
+        /* BARRA INFERIOR NOTHING */
         .input-wrapper {
             padding-top: 10px;
             padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
@@ -292,7 +308,7 @@
 
         .input-area.listening {
             background: #202020;
-            border-color: var(--text-main);
+            border-color: var(--nothing-red);
             align-items: center;
         }
 
@@ -320,19 +336,19 @@
         }
         textarea#userInput:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* Al escuchar, ocultamos el textarea y mostramos las ondas en su lugar exacto */
         .input-area.listening textarea#userInput {
             display: none;
         }
 
+        /* ECUALIZADOR SUAVE Y LIMPIO EN EL HUECO DEL TEXTO */
         .waveform-slot {
             display: none;
             flex: 1;
             align-items: center;
-            justify-content: space-between;
-            gap: 3px;
-            height: 38px;
-            padding: 0 8px 0 0;
+            justify-content: center;
+            gap: 5px;
+            height: 36px;
+            padding: 0 10px 0 0;
             overflow: hidden;
         }
 
@@ -340,18 +356,28 @@
             display: flex;
         }
 
-        /* Todas las barras empiezan en 3px (planas a cero) hasta que hablas */
         .wave-bar {
-            flex: 1;
-            max-width: 3.5px;
+            width: 3px;
             height: 3px;
             border-radius: 99px;
-            background: var(--text-main);
-            transition: height 0.07s ease-out, opacity 0.1s ease;
-            opacity: 0.35;
+            background: var(--text-muted);
+            transition: height 0.2s ease, background-color 0.2s ease;
         }
-        .wave-bar.active {
-            opacity: 1;
+
+        /* Cuando detecta voz activa, las barras oscilan suavemente con curva sinusoidal */
+        .waveform-slot.speaking .wave-bar {
+            background: var(--text-main);
+            animation: smoothVoiceWave 0.65s infinite ease-in-out alternate;
+        }
+        .waveform-slot.speaking .wave-bar:nth-child(5n+1) { animation-duration: 0.52s; --peak: 14px; }
+        .waveform-slot.speaking .wave-bar:nth-child(5n+2) { animation-duration: 0.68s; --peak: 24px; animation-delay: 0.08s; }
+        .waveform-slot.speaking .wave-bar:nth-child(5n+3) { animation-duration: 0.46s; --peak: 18px; animation-delay: 0.16s; }
+        .waveform-slot.speaking .wave-bar:nth-child(5n+4) { animation-duration: 0.61s; --peak: 26px; animation-delay: 0.11s; }
+        .waveform-slot.speaking .wave-bar:nth-child(5n+5) { animation-duration: 0.55s; --peak: 12px; animation-delay: 0.2s; }
+
+        @keyframes smoothVoiceWave {
+            0% { height: 4px; opacity: 0.55; }
+            100% { height: var(--peak, 20px); opacity: 1; }
         }
 
         .input-actions {
@@ -384,13 +410,9 @@
             cursor: not-allowed;
         }
 
-        /* Botón Stop cuadrado cuando está grabando */
         .input-area.listening .action-circle-btn {
             background: rgba(215, 25, 33, 0.16);
-            color: var(--accent);
-        }
-        .input-area.listening .action-circle-btn:hover:not(:disabled) {
-            background: rgba(215, 25, 33, 0.26);
+            color: var(--nothing-red);
         }
 
         .send-btn {
@@ -554,11 +576,11 @@
             cursor: default;
         }
         .mini-icon-btn.delete:hover {
-            color: var(--accent);
+            color: var(--nothing-red);
             border-color: rgba(215, 25, 33, 0.5);
         }
 
-        /* SELECTOR DE ICONOS ESTILO VERCEL */
+        /* SELECTOR DE ICONOS */
         .form-group {
             display: flex;
             flex-direction: column;
@@ -677,7 +699,7 @@
     <div id="auth-modal" class="modal-overlay">
         <div class="modal-card" style="text-align: center;">
             <h2>JARVIS // AUTH</h2>
-            <p style="font-size: 13.5px; color: var(--text-muted); line-height: 1.5;">Inicia sesión con tu cuenta de Google para sincronizar tus tareas y base de datos de forma segura.</p>
+            <p style="font-size: 13.5px; color: var(--text-muted); line-height: 1.5;">Conecta tu cuenta de Google para sincronizar tus calendarios, tareas y base de datos.</p>
             <button class="google-btn" onclick="loginGoogle()">
                 <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.13 0-5.78-2.11-6.73-4.96H1.18v3.14C3.15 21.32 7.22 24 12 24z"/><path fill="#FBBC05" d="M5.27 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.62H1.18C.43 8.14 0 9.87 0 11.7c0 1.83.43 3.56 1.18 5.08l4.09-3.14z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.22 0 3.15 2.68 1.18 6.62l4.09 3.14c.95-2.85 3.6-4.96 6.73-4.96z"/></svg>
                 Continuar con Google
@@ -685,7 +707,7 @@
         </div>
     </div>
 
-    <!-- MODAL DE GESTIÓN DE ATAJOS CON GALERÍA DE ICONOS SVG -->
+    <!-- MODAL DE GESTIÓN DE ATAJOS -->
     <div id="shortcuts-modal" class="modal-overlay">
         <div class="modal-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -705,7 +727,6 @@
                     <input type="text" id="shortcutLabelInput" class="form-input" style="flex:1;" placeholder="Nombre (ej: Resumen del día)">
                 </div>
 
-                <!-- Panel desplegable con librería de iconos SVG estilo Vercel -->
                 <div id="iconPickerPanel" class="icon-picker-panel"></div>
 
                 <input type="text" id="shortcutPromptInput" class="form-input" placeholder="Instrucción (ej: ¿Cómo llevo el día?)">
@@ -727,7 +748,6 @@
                 JARVIS // OS
             </div>
             <div class="header-actions">
-                <!-- Papelera SVG -->
                 <button class="icon-top-btn danger" onclick="limpiarChatLocal()" title="Limpiar chat">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 6h18"></path>
@@ -737,7 +757,6 @@
                         <line x1="14" y1="11" x2="14" y2="17"></line>
                     </svg>
                 </button>
-                <!-- Puerta con flecha hacia afuera SVG (Salir) -->
                 <button class="icon-top-btn" onclick="logout()" title="Cerrar sesión">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -760,11 +779,10 @@
             
             <textarea id="userInput" rows="1" placeholder="Mensaje a Jarvis..."></textarea>
 
-            <!-- Hueco exacto del texto ocupado por las ondas (empiezan a 0 en silencio) -->
+            <!-- Hueco exacto del texto ocupado por 20 barras suaves -->
             <div class="waveform-slot" id="waveformBars"></div>
 
             <div class="input-actions">
-                <!-- Botón Micro / Stop cuadrado -->
                 <button class="action-circle-btn" id="micBtn" onclick="toggleDictado()" title="Voz">
                     <svg id="micIconSvg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
@@ -773,7 +791,6 @@
                     </svg>
                 </button>
 
-                <!-- Botón Enviar -->
                 <button class="send-btn" id="sendBtn" onclick="enviarMensaje()" title="Enviar mensaje">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="12" y1="19" x2="12" y2="5"></line>
@@ -791,7 +808,6 @@
         let isGenerating = false;
         let historial = [];
 
-        // Paquete integrado de 20 iconos vectoriales SVG estilo Vercel/Lucide
         const ICON_PACK = {
             calendar: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
             check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
@@ -851,14 +867,12 @@
         const inputArea = document.getElementById('inputArea');
         const waveformBarsContainer = document.getElementById('waveformBars');
 
-        // Generar las 32 barras que empiezan planas a cero
-        const NUM_WAVE_BARS = 32;
-        const waveBarElements = [];
+        // 20 barras limpias con animación suave por CSS
+        const NUM_WAVE_BARS = 20;
         for (let i = 0; i < NUM_WAVE_BARS; i++) {
             const bar = document.createElement('div');
             bar.className = 'wave-bar';
             waveformBarsContainer.appendChild(bar);
-            waveBarElements.push(bar);
         }
 
         const ATAJOS_POR_DEFECTO = [
@@ -982,8 +996,7 @@
         }
 
         function togglePanelIconos() {
-            const panel = document.getElementById('iconPickerPanel');
-            panel.classList.toggle('open');
+            document.getElementById('iconPickerPanel').classList.toggle('open');
         }
 
         function seleccionarIconoAtajo(key) {
@@ -1128,13 +1141,10 @@
         function actualizarEstadoConexion(estado) {
             const dot = document.querySelector('.status-dot');
             if (!dot) return;
-            if (estado === 'online') {
-                dot.style.backgroundColor = '#F1F1F1';
-                dot.style.boxShadow = '0 0 6px rgba(241, 241, 241, 0.6)';
-            } else {
-                dot.style.backgroundColor = '#D71921';
-                dot.style.boxShadow = '0 0 8px #D71921';
-            }
+            dot.style.backgroundColor = '#D71921';
+            dot.style.boxShadow = estado === 'online'
+                ? '0 0 8px rgba(215, 25, 33, 0.85)'
+                : 'none';
         }
 
         // =========================================================================
@@ -1259,7 +1269,7 @@
         }
 
         // =========================================================================
-        // 4. MOTOR DE PUNTUACIÓN Y FORMATO DE TRANSCRIPCIÓN (ESPAÑOL)
+        // 4. MOTOR DE PUNTUACIÓN Y DETECCIÓN DE INTERROGACIONES (ESPAÑOL)
         // =========================================================================
         function procesarTextoVoz(texto) {
             if (!texto) return '';
@@ -1296,8 +1306,9 @@
 
                 s = s.charAt(0).toUpperCase() + s.slice(1);
 
-                const patronPreguntaInicio = /^(¿)?(qué|que|cuándo|cuando|dónde|donde|cómo|como|quién|quien|cuánto|cuanto|cuántos|cuantas|cuál|cual|por qué|por que|me puedes decir|dime qué|dime cuánto|sabes si|tengo algún|tengo alguna|hay algún|hay alguna)\b/i;
-                const patronPreguntaMitad = /,\s*(y\s+)?(qué|cuándo|dónde|cómo|quién|cuánto|cuántas|cuál|por qué|tengo algún|hay algún)\b/i;
+                // Detecta preguntas directas e indirectas (incluyendo "¿Mañana tengo que...?", "¿Tengo algo...?", "¿Puedo...?")
+                const patronPreguntaInicio = /^(¿)?(qué|que|cuándo|cuando|dónde|donde|cómo|como|quién|quien|cuánto|cuanto|cuántos|cuantas|cuál|cual|por qué|por que|me puedes decir|dime qué|dime cuánto|sabes si|tengo algún|tengo alguna|tengo que|mañana tengo|hoy tengo|hay algún|hay alguna|puedo|podrías|debería)\b/i;
+                const patronPreguntaMitad = /,\s*(y\s+)?(qué|cuándo|dónde|cómo|quién|cuánto|cuántas|cuál|por qué|tengo algún|tengo que|mañana tengo|hoy tengo|hay algún|puedo)\b/i;
 
                 const tieneCierre = /[.?!]$/.test(s);
 
@@ -1305,7 +1316,7 @@
                     if (!s.startsWith('¿')) s = '¿' + s.charAt(0).toUpperCase() + s.slice(1);
                     s = s.replace(/[.!]+$/, '') + (s.endsWith('?') ? '' : '?');
                 } else if (patronPreguntaMitad.test(s)) {
-                    s = s.replace(/,\s*((?:y\s+)?(?:qué|cuándo|dónde|cómo|quién|cuánto|cuántas|cuál|por qué|tengo algún|hay algún)\b.*)/i, (m, sub) => {
+                    s = s.replace(/,\s*((?:y\s+)?(?:qué|cuándo|dónde|cómo|quién|cuánto|cuántas|cuál|por qué|tengo algún|tengo que|mañana tengo|hoy tengo|hay algún|puedo)\b.*)/i, (m, sub) => {
                         const subLimpio = sub.replace(/[.?!]+$/, '');
                         return `, ¿${subLimpio}?`;
                     });
@@ -1333,15 +1344,15 @@
         }
 
         // =========================================================================
-        // 5. RECONOCIMIENTO DE VOZ SIN CONFLICTO DE HARDWARE + ONDAS DESDE CERO
+        // 5. VOZ SIN REPETICIONES EN ANDROID + ONDAS SUAVES POR CSS
         // =========================================================================
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition = null;
         let isRecording = false;
         let shouldKeepListening = false;
-        let textoBaseAntesDeSesion = '';
-        let acumuladoEnEstaSesion = '';
-        let decayWaveTimeout = null;
+        let textoFijoPrevio = '';
+        let ultimaFraseSesion = '';
+        let speakingWaveTimer = null;
 
         function cambiarIconoBotonMicro(grabando) {
             if (grabando) {
@@ -1355,68 +1366,40 @@
             }
         }
 
-        // Mantiene todas las barras a 0 (3px) cuando estás en silencio
-        function ponerOndasACero() {
-            clearTimeout(decayWaveTimeout);
-            waveBarElements.forEach(b => {
-                b.style.height = '3px';
-                b.classList.remove('active');
-            });
+        function activarAnimacionHablando() {
+            if (!isRecording) return;
+            clearTimeout(speakingWaveTimer);
+            waveformBarsContainer.classList.add('speaking');
+            speakingWaveTimer = setTimeout(() => {
+                waveformBarsContainer.classList.remove('speaking');
+            }, 350);
         }
 
-        // Pulsa las barras proporcionalmente a las palabras que estás diciendo y vuelve a 0 al callarte
-        function impulsarOndasPorVoz(intensidad = 1) {
-            if (!isRecording) return;
-            clearTimeout(decayWaveTimeout);
-
-            const centro = NUM_WAVE_BARS / 2;
-            for (let i = 0; i < NUM_WAVE_BARS; i++) {
-                const dist = Math.abs(i - centro) / centro;
-                const envolvente = Math.max(0.15, 1 - dist * 0.85);
-                const aleatorio = 0.35 + Math.random() * 0.65;
-                const altura = Math.max(4, Math.min(32, Math.round(32 * envolvente * aleatorio * intensidad)));
-                waveBarElements[i].style.height = `${altura}px`;
-                waveBarElements[i].classList.add('active');
-            }
-
-            // Si dejas de hablar durante 180ms, las barras vuelven suavemente a cero
-            decayWaveTimeout = setTimeout(() => {
-                ponerOndasACero();
-            }, 180);
+        function detenerAnimacionHablando() {
+            clearTimeout(speakingWaveTimer);
+            waveformBarsContainer.classList.remove('speaking');
         }
 
         if (SpeechRecognition) {
             recognition = new SpeechRecognition();
             recognition.lang = 'es-ES';
-            recognition.continuous = true;
+            recognition.continuous = false; // false en Android evita el bug de duplicación acumulativa en event.results
             recognition.interimResults = true;
 
-            recognition.onsoundstart = () => {
-                impulsarOndasPorVoz(0.6);
-            };
-
-            recognition.onsoundend = () => {
-                ponerOndasACero();
-            };
-
             recognition.onresult = (event) => {
-                impulsarOndasPorVoz(1);
+                activarAnimacionHablando();
 
-                let bloqueActual = '';
-                for (let i = 0; i < event.results.length; i++) {
-                    bloqueActual += event.results[i][0].transcript;
-                    if (event.results[i].isFinal && i < event.results.length - 1) {
-                        bloqueActual = bloqueActual.trim() + ', ';
-                    }
-                }
+                // En Android/Chrome tomamos ÚNICAMENTE el último índice para jamás duplicar sílabas anteriores
+                const ultimoIndice = event.results.length - 1;
+                const transcripcionActual = event.results[ultimoIndice][0].transcript.trim();
 
-                acumuladoEnEstaSesion = bloqueActual.trim();
-                userInput.value = (textoBaseAntesDeSesion + acumuladoEnEstaSesion).replace(/\s+/g, ' ').trimStart();
+                ultimaFraseSesion = transcripcionActual;
+                userInput.value = (textoFijoPrevio + ultimaFraseSesion).replace(/\s+/g, ' ').trimStart();
             };
 
             recognition.onerror = (event) => {
                 if (event.error === 'no-speech') {
-                    ponerOndasACero();
+                    detenerAnimacionHablando();
                     return;
                 }
                 if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
@@ -1425,19 +1408,21 @@
             };
 
             recognition.onend = () => {
-                ponerOndasACero();
-                // Si el navegador cortó por silencio pero tú no has parado ni enviado, engancha lo dicho y sigue escuchando
-                if (shouldKeepListening && isRecording) {
-                    if (acumuladoEnEstaSesion) {
-                        textoBaseAntesDeSesion = (textoBaseAntesDeSesion + acumuladoEnEstaSesion).trim();
-                        if (!/[.,;?!]$/.test(textoBaseAntesDeSesion)) {
-                            textoBaseAntesDeSesion += ', ';
-                        } else {
-                            textoBaseAntesDeSesion += ' ';
-                        }
-                        acumuladoEnEstaSesion = '';
-                        userInput.value = textoBaseAntesDeSesion;
+                detenerAnimacionHablando();
+
+                // Consolidamos el tramo dicho antes de una pausa y re-abrimos el micro al instante
+                if (ultimaFraseSesion) {
+                    textoFijoPrevio = (textoFijoPrevio + ultimaFraseSesion).trim();
+                    if (!/[.,;?!]$/.test(textoFijoPrevio)) {
+                        textoFijoPrevio += ', ';
+                    } else {
+                        textoFijoPrevio += ' ';
                     }
+                    ultimaFraseSesion = '';
+                    userInput.value = textoFijoPrevio;
+                }
+
+                if (shouldKeepListening && isRecording) {
                     setTimeout(() => {
                         if (shouldKeepListening && isRecording) {
                             try { recognition.start(); } catch (e) {}
@@ -1451,16 +1436,15 @@
             if (isGenerating) return;
             if (!recognition) return alert('Tu navegador no soporta dictado por voz.');
 
-            // Conservamos lo que ya hubiera en la caja de texto para continuar escribiendo a partir de ahí
-            textoBaseAntesDeSesion = userInput.value.trim();
-            if (textoBaseAntesDeSesion) {
-                textoBaseAntesDeSesion += ' ';
+            textoFijoPrevio = userInput.value.trim();
+            if (textoFijoPrevio) {
+                textoFijoPrevio += ' ';
             }
-            acumuladoEnEstaSesion = '';
+            ultimaFraseSesion = '';
 
             isRecording = true;
             shouldKeepListening = true;
-            ponerOndasACero();
+            detenerAnimacionHablando();
             inputArea.classList.add('listening');
             cambiarIconoBotonMicro(true);
 
@@ -1474,19 +1458,19 @@
         function detenerGrabacionYVolcarTexto() {
             shouldKeepListening = false;
             isRecording = false;
-            ponerOndasACero();
+            detenerAnimacionHablando();
 
             try { if (recognition) recognition.stop(); } catch (e) {}
 
             inputArea.classList.remove('listening');
             cambiarIconoBotonMicro(false);
 
-            const textoBruto = (userInput.value || (textoBaseAntesDeSesion + acumuladoEnEstaSesion)).trim();
+            const textoBruto = (userInput.value || (textoFijoPrevio + ultimaFraseSesion)).replace(/,\s*$/, '').trim();
             if (textoBruto) {
                 userInput.value = procesarTextoVoz(textoBruto);
             }
-            textoBaseAntesDeSesion = userInput.value ? userInput.value + ' ' : '';
-            acumuladoEnEstaSesion = '';
+            textoFijoPrevio = userInput.value ? userInput.value + ' ' : '';
+            ultimaFraseSesion = '';
 
             ajustarAlturaInput();
             userInput.focus();
@@ -1502,7 +1486,7 @@
         }
 
         // =========================================================================
-        // 6. ENVÍO DE MENSAJES
+        // 6. ENVÍO DE MENSAJES Y RECONEXIÓN AUTOMÁTICA DE GOOGLE TOKEN
         // =========================================================================
         async function enviarMensaje() {
             if (isGenerating) return;
@@ -1510,15 +1494,14 @@
             if (isRecording) {
                 shouldKeepListening = false;
                 isRecording = false;
-                ponerOndasACero();
+                detenerAnimacionHablando();
                 try { if (recognition) recognition.stop(); } catch (e) {}
                 inputArea.classList.remove('listening');
                 cambiarIconoBotonMicro(false);
-                // Damos 150ms para que el último evento onresult de Android termine de llegar
                 await new Promise(r => setTimeout(r, 150));
             }
 
-            let rawText = (userInput.value || (textoBaseAntesDeSesion + acumuladoEnEstaSesion)).trim();
+            let rawText = (userInput.value || (textoFijoPrevio + ultimaFraseSesion)).replace(/,\s*$/, '').trim();
             if (!rawText) return;
 
             let text = procesarTextoVoz(rawText);
@@ -1541,8 +1524,8 @@
             guardarMensajeEnChatLocal('user', text);
 
             userInput.value = '';
-            textoBaseAntesDeSesion = '';
-            acumuladoEnEstaSesion = '';
+            textoFijoPrevio = '';
+            ultimaFraseSesion = '';
             ajustarAlturaInput();
 
             const loadingId = 'loading-' + Date.now();
@@ -1567,14 +1550,21 @@
                 const data = await res.json().catch(() => ({}));
 
                 if (res.status === 401) {
-                    chatBox.innerHTML += `<div class="message assistant" style="color: var(--accent);">${data.error || 'Sesión expirada. Pulsa en Salir y vuelve a entrar.'}</div>`;
+                    chatBox.innerHTML += `<div class="message assistant" style="color: var(--nothing-red);">${data.error || 'Sesión expirada.'}</div>`;
                     authModal.style.display = 'flex';
                     setEstadoGenerando(false);
                     return;
                 }
 
                 const reply = data.reply || data.error || 'Sin respuesta del servidor.';
-                chatBox.innerHTML += `<div class="message assistant">${formatearTexto(reply)}</div>`;
+
+                // Si la respuesta indica que el token de Google de 1 hora expiró, ofrecemos botón directo de reconexión
+                const falloGoogleAuth = /autenticaci[oó]n de google|expirado|credenciales|GOOGLE_TOKEN_EXPIRED/i.test(reply);
+                const btnReconectarHtml = falloGoogleAuth
+                    ? `<br><button class="reconnect-inline-btn" onclick="loginGoogle()">🔄 Reconectar permisos de Google</button>`
+                    : '';
+
+                chatBox.innerHTML += `<div class="message assistant">${formatearTexto(reply)}${btnReconectarHtml}</div>`;
                 guardarMensajeEnChatLocal('assistant', reply);
                 
                 historial.push({ role: 'user', parts: [{ text }] });
@@ -1583,7 +1573,7 @@
 
             } catch (err) {
                 document.getElementById(loadingId)?.remove();
-                chatBox.innerHTML += `<div class="message assistant" style="color: var(--accent);">Error de conexión: ${err.message}</div>`;
+                chatBox.innerHTML += `<div class="message assistant" style="color: var(--nothing-red);">Error de conexión: ${err.message}</div>`;
             } finally {
                 setEstadoGenerando(false);
                 chatBox.scrollTop = chatBox.scrollHeight;
