@@ -333,21 +333,25 @@ export const assistantTools = [
           required: ['search_text']
         }
       },
-      
-      // --- ENTRENAMIENTOS Y RENDIMIENTO (STRAVA) ---
+
+      // --- ENTRENAMIENTOS Y RENDIMIENTO COMPLETO (STRAVA) ---
       {
         name: 'consultar_entrenos_strava',
-        description: 'Consulta los entrenamientos reales del usuario en Strava (carreras, rutas en bici, sesiones de gimnasio, distancias, ritmos por km, pulsaciones medias y máximas, desnivel, calorías quemadas y las notas/ejercicios apuntados en la descripción). Úsala siempre que pregunte por sus entrenos, cómo va para sus próximas carreras, pulsaciones, fatiga o actividad física.',
+        description: 'Descarga el historial completo de entrenamientos del usuario en Strava (hasta 200 actividades), estadísticas históricas, comparativa de evolución de pulsaciones medias/máximas, ritmos, cadencia, parciales por kilómetro (splits), mejores esfuerzos y notas de gimnasio. Si el usuario pregunta por todas sus carreras, su evolución de pulsaciones o su historial completo, pon limit: 150 y sport_filter: "Run" (o "ALL").',
         parameters: {
           type: Type.OBJECT,
           properties: {
             limit: {
               type: Type.NUMBER,
-              description: 'Número de entrenamientos recientes a consultar (por defecto 10, máximo 30)'
+              description: 'Cantidad de actividades a analizar (usa 60 por defecto, o hasta 200 si pregunta por todo su historial o evolución histórica)'
+            },
+            sport_filter: {
+              type: Type.STRING,
+              description: 'Filtro opcional de deporte: "ALL" (todos), "Run" (solo carreras), "Ride" (solo ciclismo/MTB) o "WeightTraining" (solo gimnasio/pesas)'
             },
             include_latest_details: {
               type: Type.BOOLEAN,
-              description: 'Pon true para descargar también las notas/descripción completa y calorías exactas del último entrenamiento'
+              description: 'Pon true para incluir los parciales kilómetro a kilómetro (splits), mejores marcas y notas completas de los últimos entrenos'
             }
           }
         }

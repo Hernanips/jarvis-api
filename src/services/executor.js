@@ -261,10 +261,11 @@ export async function ejecutarHerramienta(nombre, args, userId, googleToken, goo
     return error ? { error: error.message } : { ok: true, memoria_eliminada: encontradas[0].fact };
   }
 
-  // 12. CONSULTAR ENTRENOS DE STRAVA
+  // 12. CONSULTAR ENTRENOS DE STRAVA (Historial completo y analítica)
   if (nombre === 'consultar_entrenos_strava') {
     return await consultarEntrenosStrava(userId, {
-      limit: args.limit || 10,
+      limit: args.limit || 60,
+      sport_filter: args.sport_filter || 'ALL',
       include_latest_details: args.include_latest_details !== false
     });
   }
