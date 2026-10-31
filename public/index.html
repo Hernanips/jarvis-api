@@ -1447,7 +1447,15 @@
             vibrar(16);
 
             try {
-                micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // Activamos limpieza de ruido y eco para que la voz llegue nítida y a alta calidad
+                micStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        sampleRate: 48000
+                    }
+                });
 
                 if (!audioCtx) {
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1463,7 +1471,8 @@
                 source.connect(analyserNode);
 
                 audioChunks = [];
-                const recOptions = { audioBitsPerSecond: 32000 };
+                // Subimos de 32000 a 128000 bps para que no empaste sílabas al hablar rápido
+                const recOptions = { audioBitsPerSecond: 128000 };
                 if (window.MediaRecorder) {
                     if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
                         recOptions.mimeType = 'audio/webm;codecs=opus';

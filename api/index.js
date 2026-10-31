@@ -67,11 +67,11 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
 
-      // 3. Transcripción de voz con puntuación, comas e interrogaciones reales por entonación
+      // 3. Transcripción de alta precisión en español (sin inventar palabras)
       if (body.mode === 'transcribe' && body.audioBase64) {
         const cleanMime = (body.mimeType || 'audio/webm').split(';')[0];
         const transResponse = await ai.models.generateContent({
-          model: 'gemini-3.5-flash-lite',
+          model: 'gemini-2.5-flash',
           contents: [
             {
               role: 'user',
@@ -83,11 +83,19 @@ export default async function handler(req, res) {
                   }
                 },
                 {
-                  text: 'Transcribe exactamente en español lo que dice este audio. Pon puntuación perfecta y natural: comas, puntos y signos de interrogación (¿?) o exclamación (¡!) según la entonación y el sentido de la frase. NO respondas a la pregunta ni añadas texto extra ni comillas: devuelve ÚNICAMENTE la transcripción limpia. Si solo hay silencio o ruido sin palabras, devuelve exactamente una cadena vacía.'
+                  text: `Transcribe palabra por palabra este audio en español de España.
+                  Contexto frecuente: es un usuario hablando con su asistente personal Jarvis sobre sus tareas pendientes, qué tenía que hacer ayer/hoy/mañana, calendario, universidad, entrenamientos y comidas.
+                  Reglas estrictas:
+                  - Mantén fidelidad fonética y gramatical absoluta: no cambies frases lógicas como "¿qué tenía que hacer ayer?" por palabras sueltas sin sentido.
+                  - Añade comas, puntos y signos de interrogación (¿?) de forma natural.
+                  - Devuelve ÚNICAMENTE el texto transcrito, sin comillas ni explicaciones. Si hay silencio, devuelve cadena vacía.`
                 }
               ]
             }
-          ]
+          ],
+          config: {
+            temperature: 0
+          }
         });
 
         return res.status(200).json({
