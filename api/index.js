@@ -1,6 +1,7 @@
 import { supabase, ai } from '../src/config/clients.js';
 import { assistantTools } from '../src/tools/declarations.js';
 import { ejecutarHerramienta } from '../src/services/executor.js';
+import { intercambiarCodigoStrava } from '../src/services/stravaApi.js';
 
 // Modelo único fijo para todo el servidor (chat y voz)
 const MODELO_GEMINI = 'gemini-3.5-flash-lite';
@@ -9,7 +10,8 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     return res.status(200).json({
       supabaseUrl: (process.env.SUPABASE_URL || '').trim(),
-      supabaseAnonKey: (process.env.SUPABASE_KEY || '').trim()
+      supabaseAnonKey: (process.env.SUPABASE_KEY || '').trim(),
+      stravaClientId: (process.env.STRAVA_CLIENT_ID || '').trim()
     });
   }
 
@@ -46,9 +48,20 @@ export default async function handler(req, res) {
 
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
 
-      // 1. Ping exclusivo para sincronizar el refresh_token
+      // 1. Ping exclusivo para sincronizar el refresh_token y comprobar estado de Strava
       if (body.syncTokenOnly) {
-        return res.status(200).json({ ok: true });
+        const { data: st } = await supabase
+          .from('user_strava_tokens')
+          .select('user_id')
+          .eq('user_id', userId)
+          .single();
+        return res.status(200).json({ ok: true, stravaConnected: Boolean(st) });
+      }
+
+      // 1b. Canjear código OAuth de Strava al volver de autorizar
+      if (body.mode === 'strava_exchange' && body.code) {
+        await intercambiarCodigoStrava(userId, body.code);
+        return res.status(200).json({ ok: true, stravaConnected: true });
       }
 
       // 2. Gestión directa del panel visual de Memorias
@@ -136,6 +149,7 @@ export default async function handler(req, res) {
         =========================================================
 
         - MEMORIA PROACTIVA AUTOMÁTICA: Cuando el usuario mencione en la conversación cualquier dato nuevo relevante sobre su vida, metas deportivas (ej. próximas carreras 5K/8K/Media Maratón, tiempos objetivo, pulsaciones), objetivos físicos/nutricionales, estudios, proyectos o preferencias, llama SIEMPRE por iniciativa propia a 'guardar_memoria' (o a 'actualizar_memoria' si cambia un objetivo que ya estaba en la lista de arriba) ANTES de darle tu respuesta final. Convierte referencias relativas de tiempo ("en dos semanas", "en enero") a fechas concretas sabiendo que hoy es ${fechaLegible}. No hace falta que el usuario te pida "guarda esto".
+        - ENTRENAMIENTOS Y STRAVA: Tienes conexión directa con el perfil de Strava del usuario mediante 'consultar_entrenos_strava'. Úsala cuando pregunte por sus entrenamientos, carreras, gimnasio, bici, ritmos, pulsaciones o cómo va para sus objetivos deportivos. Analiza sus pulsaciones, ritmos y notas con criterio de entrenador exigente.
         - REGLA DE ORO DE TAREAS/EVENTOS: NUNCA crees tareas en Google Tasks ni eventos en Google Calendar automáticamente a menos que el usuario te lo pida de forma explícita.
         - LECTURA DE TAREAS Y CALENDARIO: Siempre que el usuario pregunte por sus tareas, eventos, qué tiene hoy/mañana o cómo lleva el día, llama a 'consultar_estado_dia' o 'consultar_calendario'. Si el resultado devuelve 'google_conectado: false', dile exactamente el mensaje de 'error_google'.
         - DETALLES Y DESCRIPCIONES: Cuando el usuario pida crear o editar una tarea/evento incluyendo una descripción, nota o detalles adicionales, pasa SIEMPRE ese texto en el parámetro 'description'.

@@ -786,6 +786,12 @@
                 JARVIS // OS
             </div>
             <div class="header-actions">
+                <!-- Botón para conectar Strava (se ilumina al estar conectado) -->
+                <button class="icon-top-btn" id="stravaBtn" onclick="conectarStrava()" title="Conectar Strava">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                </button>
                 <!-- Botón para ver la Memoria de Jarvis estilo Claude -->
                 <button class="icon-top-btn" onclick="abrirModalMemorias()" title="Memoria de Jarvis">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -845,6 +851,8 @@
         let currentUserId = 'default';
         let isGenerating = false;
         let historial = [];
+        let stravaClientIdGlobal = '';
+        let pendingStravaCode = new URLSearchParams(window.location.search).get('code') || null;
 
         // Vibración háptica sutil estilo Nothing OS en Android
         function vibrar(ms = 14) {
@@ -1232,11 +1240,51 @@
         // =========================================================================
         // 3. AUTH SUPABASE + SINCRONIZACIÓN DE REFRESH TOKEN
         // =========================================================================
+        function marcarStravaConectadoUI(conectado) {
+            const btn = document.getElementById('stravaBtn');
+            if (!btn) return;
+            if (conectado) {
+                btn.style.borderColor = '#D71921';
+                btn.style.color = '#F1F1F1';
+                btn.title = 'Strava conectado';
+            }
+        }
+
+        function conectarStrava() {
+            vibrar(12);
+            if (!stravaClientIdGlobal) {
+                return alert('Falta STRAVA_CLIENT_ID en las variables de entorno de Vercel.');
+            }
+            const redirectUri = encodeURIComponent(window.location.origin);
+            const scope = 'read,activity:read_all,profile:read_all';
+            window.location.href = `https://www.strava.com/oauth/authorize?client_id=${stravaClientIdGlobal}&response_type=code&redirect_uri=${redirectUri}&approval_prompt=auto&scope=${scope}`;
+        }
+
         async function sincronizarRefreshTokenEnServidor(accessToken) {
-            const rToken = localStorage.getItem('jarvis_google_refresh_token');
-            if (!rToken || !accessToken) return;
+            if (!accessToken) return;
             try {
-                await fetch('/api', {
+                // Si venimos de autorizar Strava con ?code= en la URL, lo canjeamos automáticamente
+                if (pendingStravaCode) {
+                    const codeToExchange = pendingStravaCode;
+                    pendingStravaCode = null;
+                    window.history.replaceState(null, '', window.location.pathname);
+                    const resSt = await fetch('/api', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${accessToken}`
+                        },
+                        body: JSON.stringify({ mode: 'strava_exchange', code: codeToExchange })
+                    });
+                    const dataSt = await resSt.json().catch(() => ({}));
+                    if (dataSt.stravaConnected) {
+                        marcarStravaConectadoUI(true);
+                        chatBox.innerHTML += `<div class="message assistant">✅ <strong>Strava vinculado correctamente.</strong> Ya tengo acceso en tiempo real a tus carreras, rutas en bici, sesiones de gimnasio y pulsaciones.</div>`;
+                    }
+                }
+
+                const rToken = localStorage.getItem('jarvis_google_refresh_token') || '';
+                const res = await fetch('/api', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1245,6 +1293,8 @@
                     },
                     body: JSON.stringify({ syncTokenOnly: true })
                 });
+                const data = await res.json().catch(() => ({}));
+                if (data.stravaConnected) marcarStravaConectadoUI(true);
             } catch (e) {}
         }
 
@@ -1295,9 +1345,7 @@
                 if (!res.ok) throw new Error(`Error HTTP ${res.status} en /api`);
                 
                 const config = await res.json();
-                if (!config.supabaseUrl || !config.supabaseAnonKey) {
-                    throw new Error("Faltan SUPABASE_URL o SUPABASE_KEY en Vercel.");
-                }
+                if (config.stravaClientId) stravaClientIdGlobal = config.stravaClientId;
 
                 localStorage.setItem('jarvis_supa_config', JSON.stringify(config));
                 crearClienteSupabase(config.supabaseUrl, config.supabaseAnonKey);

@@ -332,6 +332,25 @@ export const assistantTools = [
           },
           required: ['search_text']
         }
+      },
+      
+      // --- ENTRENAMIENTOS Y RENDIMIENTO (STRAVA) ---
+      {
+        name: 'consultar_entrenos_strava',
+        description: 'Consulta los entrenamientos reales del usuario en Strava (carreras, rutas en bici, sesiones de gimnasio, distancias, ritmos por km, pulsaciones medias y máximas, desnivel, calorías quemadas y las notas/ejercicios apuntados en la descripción). Úsala siempre que pregunte por sus entrenos, cómo va para sus próximas carreras, pulsaciones, fatiga o actividad física.',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            limit: {
+              type: Type.NUMBER,
+              description: 'Número de entrenamientos recientes a consultar (por defecto 10, máximo 30)'
+            },
+            include_latest_details: {
+              type: Type.BOOLEAN,
+              description: 'Pon true para descargar también las notas/descripción completa y calorías exactas del último entrenamiento'
+            }
+          }
+        }
       }
     ]
   }

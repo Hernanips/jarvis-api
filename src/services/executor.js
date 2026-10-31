@@ -1,5 +1,6 @@
 import { supabase } from '../config/clients.js';
 import { ejecutarAccionGoogle } from './googleApi.js';
+import { consultarEntrenosStrava } from './stravaApi.js';
 
 // Calcula el inicio y fin del día en hora exacta de España (Europe/Madrid)
 function obtenerRangoDiaMadrid(fechaStr) {
@@ -162,14 +163,15 @@ export async function ejecutarHerramienta(nombre, args, userId, googleToken, goo
     return error ? { error: error.message } : { historial_peso: data || [] };
   }
 
-  // 8. CONSULTAR ESTADO DEL DÍA (Supabase + Google Calendar/Tasks)
+  // 8. CONSULTAR ESTADO DEL DÍA (Supabase + Google Calendar/Tasks + Strava)
   if (nombre === 'consultar_estado_dia') {
     const { inicioDia, finDia } = obtenerRangoDiaMadrid();
 
-    const [comidas, peso, dataG] = await Promise.all([
+    const [comidas, peso, dataG, dataStrava] = await Promise.all([
       supabase.from('meals').select('*').eq('user_id', userId).gte('created_at', inicioDia).lte('created_at', finDia),
       supabase.from('weight_logs').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1),
-      ejecutarAccionGoogle('leer_tareas', {}, googleToken, userId, googleRefreshToken)
+      ejecutarAccionGoogle('leer_tareas', {}, googleToken, userId, googleRefreshToken),
+      consultarEntrenosStrava(userId, { limit: 5, include_latest_details: true })
     ]);
 
     const totalCalorias = comidas.data?.reduce((acc, c) => acc + (Number(c.calories) || 0), 0) || 0;
@@ -182,6 +184,7 @@ export async function ejecutarHerramienta(nombre, args, userId, googleToken, goo
         comidas_registradas: comidas.data || []
       },
       ultimo_peso: peso.data?.[0]?.weight_kg || 'No registrado',
+      strava: dataStrava,
       google_conectado: dataG?.ok === true,
       error_google: dataG?.ok === false ? dataG.error : null,
       tareas_por_lista: dataG?.tareas || {},
@@ -256,5 +259,13 @@ export async function ejecutarHerramienta(nombre, args, userId, googleToken, goo
       .eq('user_id', userId);
 
     return error ? { error: error.message } : { ok: true, memoria_eliminada: encontradas[0].fact };
+  }
+
+  // 12. CONSULTAR ENTRENOS DE STRAVA
+  if (nombre === 'consultar_entrenos_strava') {
+    return await consultarEntrenosStrava(userId, {
+      limit: args.limit || 10,
+      include_latest_details: args.include_latest_details !== false
+    });
   }
 }
