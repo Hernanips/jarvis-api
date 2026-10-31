@@ -162,45 +162,33 @@ export async function ejecutarHerramienta(nombre, args, userId, googleToken, goo
     return error ? { error: error.message } : { historial_peso: data || [] };
   }
 
-  // 8. CONSULTAR ESTADO DEL DÍA (Tasks + Calendarios + Nutrición + Último Peso)
+  // 8. CONSULTAR ESTADO DEL DÍA (Supabase + Google Calendar/Tasks)
   if (nombre === 'consultar_estado_dia') {
-    const dataG = await ejecutarAccionGoogle('leer_tareas', {}, googleToken, userId, googleRefreshToken);
-    const { fecha: hoy, inicioDia, finDia } = obtenerRangoDiaMadrid();
+    const { inicioDia, finDia } = obtenerRangoDiaMadrid();
 
-    const { data: comidas } = await supabase
-      .from('meals')
-      .select('id, description, calories, protein_g, carbs_g, fat_g, created_at')
-      .eq('user_id', userId)
-      .gte('created_at', inicioDia)
-      .lte('created_at', finDia);
+    const [comidas, peso, dataG] = await Promise.all([
+      supabase.from('meals').select('*').eq('user_id', userId).gte('created_at', inicioDia).lte('created_at', finDia),
+      supabase.from('weight_logs').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1),
+      ejecutarAccionGoogle('leer_tareas', {}, googleToken, userId, googleRefreshToken)
+    ]);
 
-    const { data: ultimoPeso } = await supabase
-      .from('weight_logs')
-      .select('weight_kg, body_fat_pct, muscle_mass_kg, created_at')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    const listaComidas = comidas || [];
-    const totalesNutricion = listaComidas.reduce((acc, c) => ({
-      calorias: acc.calorias + (Number(c.calories) || 0),
-      proteina_g: acc.proteina_g + (Number(c.protein_g) || 0),
-      carbohidratos_g: acc.carbohidratos_g + (Number(c.carbs_g) || 0),
-      grasas_g: acc.grasas_g + (Number(c.fat_g) || 0)
-    }), { calorias: 0, proteina_g: 0, carbohidratos_g: 0, grasas_g: 0 });
+    const totalCalorias = comidas.data?.reduce((acc, c) => acc + (Number(c.calories) || 0), 0) || 0;
+    const totalProteinas = comidas.data?.reduce((acc, c) => acc + (Number(c.protein_g) || 0), 0) || 0;
 
     return {
-      hoy_es: hoy,
-      calendarios_disponibles_del_usuario: dataG.calendarios_disponibles || [],
-      listas_tasks_disponibles_del_usuario: dataG.listas_disponibles || [],
-      eventos_en_calendarios: dataG.eventos_calendario || {},
-      tareas_en_listas: dataG.tareas || {},
-      nutricion_hoy: {
-        comidas: listaComidas,
-        totales: totalesNutricion
+      resumen_nutricion: {
+        calorias_hoy: totalCalorias,
+        proteinas_hoy: totalProteinas,
+        comidas_registradas: comidas.data || []
       },
-      ultimo_peso_registrado: ultimoPeso && ultimoPeso.length > 0 ? ultimoPeso[0] : null,
-      aviso_google: dataG.error || null
+      ultimo_peso: peso.data?.[0]?.weight_kg || 'No registrado',
+      google_conectado: dataG?.ok === true,
+      error_google: dataG?.ok === false ? dataG.error : null,
+      tareas_por_lista: dataG?.tareas || {},
+      eventos_calendario: dataG?.eventos || {},
+      calendarios_disponibles_del_usuario: dataG?.calendarios_disponibles || [],
+      listas_tasks_disponibles_del_usuario: dataG?.listas_disponibles || [],
+      _newGoogleAccessToken: dataG?._newGoogleAccessToken || null
     };
   }
 

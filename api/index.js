@@ -48,7 +48,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
 
-      // 2. Gestión directa del panel visual de Memorias (listar o borrar desde la UI)
+      // 2. Gestión directa del panel visual de Memorias
       if (body.mode === 'list_memories') {
         const { data: mems } = await supabase
           .from('user_memories')
@@ -67,43 +67,47 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
 
-      // 3. Transcripción de alta precisión en español (sin inventar palabras)
+      // 3. Transcripción de voz con soporte multimodal real (gemini-2.5-flash)
       if (body.mode === 'transcribe' && body.audioBase64) {
         const cleanMime = (body.mimeType || 'audio/webm').split(';')[0];
-        const transResponse = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                {
-                  inlineData: {
-                    mimeType: cleanMime,
-                    data: body.audioBase64
-                  }
-                },
-                {
-                  text: `Transcribe palabra por palabra este audio en español de España.
-                  Contexto frecuente: es un usuario hablando con su asistente personal Jarvis sobre sus tareas pendientes, qué tenía que hacer ayer/hoy/mañana, calendario, universidad, entrenamientos y comidas.
-                  Reglas estrictas:
-                  - Mantén fidelidad fonética y gramatical absoluta: no cambies frases lógicas como "¿qué tenía que hacer ayer?" por palabras sueltas sin sentido.
-                  - Añade comas, puntos y signos de interrogación (¿?) de forma natural.
-                  - Devuelve ÚNICAMENTE el texto transcrito, sin comillas ni explicaciones. Si hay silencio, devuelve cadena vacía.`
-                }
-              ]
-            }
-          ],
-          config: {
-            temperature: 0
-          }
-        });
+        const promptAudio = 'Transcribe exactamente en español de España lo que dice este audio. Contexto: el usuario habla con su asistente Jarvis sobre tareas, qué tenía que hacer ayer/hoy/mañana, calendario, universidad, entrenamientos y comidas. No inventes palabras sueltas sin sentido. Pon comas, puntos y signos de interrogación (¿?) según la entonación. Devuelve ÚNICAMENTE la transcripción limpia, sin comillas ni texto adicional. Si hay silencio, devuelve cadena vacía.';
+
+        let transResponse;
+        try {
+          transResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  { inlineData: { mimeType: cleanMime, data: body.audioBase64 } },
+                  { text: promptAudio }
+                ]
+              }
+            ]
+          });
+        } catch (errModel) {
+          // Fallback por si acaso
+          transResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-lite',
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  { inlineData: { mimeType: cleanMime, data: body.audioBase64 } },
+                  { text: promptAudio }
+                ]
+              }
+            ]
+          });
+        }
 
         return res.status(200).json({
           transcript: (transResponse.text || '').trim()
         });
       }
 
-      // 4. Cargamos la Memoria a Largo Plazo del usuario (Estilo Claude) antes de hablar con Gemini
+      // 4. Cargamos la Memoria a Largo Plazo del usuario
       const { data: memoriasUsuario } = await supabase
         .from('user_memories')
         .select('category, fact')
@@ -142,7 +146,7 @@ export default async function handler(req, res) {
 
         - MEMORIA PROACTIVA AUTOMÁTICA: Cuando el usuario mencione en la conversación cualquier dato nuevo relevante sobre su vida, metas deportivas (ej. próximas carreras 5K/8K/Media Maratón, tiempos objetivo, pulsaciones), objetivos físicos/nutricionales, estudios, proyectos o preferencias, llama SIEMPRE por iniciativa propia a 'guardar_memoria' (o a 'actualizar_memoria' si cambia un objetivo que ya estaba en la lista de arriba) ANTES de darle tu respuesta final. Convierte referencias relativas de tiempo ("en dos semanas", "en enero") a fechas concretas sabiendo que hoy es ${fechaLegible}. No hace falta que el usuario te pida "guarda esto".
         - REGLA DE ORO DE TAREAS/EVENTOS: NUNCA crees tareas en Google Tasks ni eventos en Google Calendar automáticamente a menos que el usuario te lo pida de forma explícita.
-        - CLASIFICACIÓN INTELIGENTE MULTIUSUARIO: Cada usuario tiene sus propios calendarios y listas de tareas. Antes de usar 'crear_evento' o 'crear_tarea', si en esta conversación aún no conoces los nombres exactos de los calendarios o listas del usuario, llama PRIMERO a 'consultar_estado_dia'.
+        - LECTURA DE TAREAS Y CALENDARIO: Siempre que el usuario pregunte por sus tareas, eventos, qué tiene hoy/mañana o cómo lleva el día, llama a 'consultar_estado_dia' o 'consultar_calendario'. Si el resultado devuelve 'google_conectado: false', dile exactamente el mensaje de 'error_google'.
         - DETALLES Y DESCRIPCIONES: Cuando el usuario pida crear o editar una tarea/evento incluyendo una descripción, nota o detalles adicionales, pasa SIEMPRE ese texto en el parámetro 'description'.
         - NUTRICIÓN: Si menciona algo que ha comido, estima calorías y proteínas y llama a 'registrar_comida'. Si se equivoca o quiere corregir/borrar una comida, usa 'editar_comida' o 'borrar_comida'.
         - Sé directo, breve (2-4 frases máximo) y exigente.
@@ -153,8 +157,10 @@ export default async function handler(req, res) {
         { role: 'user', parts: [{ text: message }] }
       ];
 
+      const MODEL_NAME = 'gemini-2.5-flash';
+
       let response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash-lite',
+        model: MODEL_NAME,
         contents,
         config: { systemInstruction, tools: assistantTools }
       });
@@ -194,7 +200,7 @@ export default async function handler(req, res) {
         contents.push({ role: 'user', parts: functionResponseParts });
 
         response = await ai.models.generateContent({
-          model: 'gemini-3.5-flash-lite',
+          model: MODEL_NAME,
           contents,
           config: { systemInstruction, tools: assistantTools }
         });

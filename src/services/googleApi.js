@@ -57,7 +57,6 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
   let activeToken = googleTokenInicial;
   let tokenRenovadoEnEstaLlamada = null;
 
-  // Si no hay token inicial, intentamos sacarlo directamente con el refresh_token
   if (!activeToken) {
     activeToken = await renovarTokenGoogleSilencioso(userId, googleRefreshToken);
     tokenRenovadoEnEstaLlamada = activeToken;
@@ -66,11 +65,11 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
   if (!activeToken) {
     return {
       ok: false,
-      error: 'Falta vincular el token offline de Google. Cierra sesión y entra una vez más con Google.'
+      error: 'Falta vincular el token de Google. Pulsa el botón de Cerrar sesión (arriba a la derecha) y vuelve a entrar con Google.'
     };
   }
 
-  async function gFetch(url, _unused, options = {}) {
+  async function gFetch(url, options = {}) {
     let res = await fetch(url, {
       ...options,
       headers: {
@@ -80,7 +79,7 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
       }
     });
 
-    // Si el token de 1 hora acaba de caducar (401), lo renovamos al vuelo y repetimos la petición sin fallar
+    // Si el token de 1 hora ha caducado (401), lo renovamos al vuelo con el refresh_token y repetimos
     if (res.status === 401) {
       const nuevo = await renovarTokenGoogleSilencioso(userId, googleRefreshToken);
       if (nuevo) {
@@ -94,6 +93,8 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
             ...(options.headers || {})
           }
         });
+      } else {
+        throw new Error('GOOGLE_TOKEN_EXPIRED');
       }
     }
 
@@ -106,19 +107,16 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
   }
 
   try {
-    // Cargamos listas de Tasks y Calendarios del usuario autenticado
     const [listasRes, calsRes] = await Promise.all([
-      gFetch(`${TASKS_BASE}/users/@me/lists?maxResults=100`, activeToken),
-      gFetch(`${CAL_BASE}/users/me/calendarList`, activeToken)
+      gFetch(`${TASKS_BASE}/users/@me/lists?maxResults=100`),
+      gFetch(`${CAL_BASE}/users/me/calendarList`)
     ]);
 
     const todasLasListas = listasRes.items || [];
-    // Filtramos calendarios donde el usuario tiene permiso de escritura
     const misCalendarios = (calsRes.items || []).filter(
-      c => c.accessRole === 'owner' || c.accessRole === 'writer'
+      c => c.accessRole === 'owner' || c.accessRole === 'writer' || c.primary
     );
 
-    // --- HELPERS INTERNOS ---
     function buscarCalendarioPorNombre(nombreCal) {
       if (!nombreCal) return misCalendarios.find(c => c.primary) || misCalendarios[0];
       const q = normalizar(nombreCal);
@@ -131,7 +129,7 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
           return cal;
         }
       }
-      return null;
+      return misCalendarios.find(c => c.primary) || misCalendarios[0];
     }
 
     function buscarListaPorNombre(nombreCategoria) {
@@ -145,7 +143,7 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
           return lista;
         }
       }
-      return null;
+      return todasLasListas[0];
     }
 
     async function buscarTareaPorNombre(nombreBuscado) {
@@ -154,8 +152,7 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
 
       for (const lista of todasLasListas) {
         const resT = await gFetch(
-          `${TASKS_BASE}/lists/${encodeURIComponent(lista.id)}/tasks?showCompleted=true&showHidden=true&maxResults=100`,
-          googleToken
+          `${TASKS_BASE}/lists/${encodeURIComponent(lista.id)}/tasks?showCompleted=true&showHidden=true&maxResults=100`
         );
         const tareas = resT.items || [];
         for (const t of tareas) {
@@ -179,7 +176,7 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
 
       for (const cal of misCalendarios) {
         const url = `${CAL_BASE}/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true`;
-        const resEv = await gFetch(url, googleToken);
+        const resEv = await gFetch(url);
         const eventos = resEv.items || [];
         for (const ev of eventos) {
           if (normalizar(ev.summary).includes(query)) {
@@ -217,25 +214,24 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
       const limpio = String(str).trim();
       if (!limpio.includes('T')) {
         if (sumarUnaHora) {
-          // En Google Calendar REST API el end.date de todo el día es exclusivo (+1 día)
           const [y, m, d] = limpio.split('-').map(Number);
           const nextDay = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().substring(0, 10);
           return { date: nextDay };
         }
         return { date: limpio.substring(0, 10) };
       }
-      // Si viene YYYY-MM-DDTHH:mm le añadimos segundos
       const isoLocal = limpio.length === 16 ? `${limpio}:00` : limpio.replace('Z', '');
       return { dateTime: isoLocal, timeZone: 'Europe/Madrid' };
     }
 
     async function obtenerEventosTodosLosCalendarios(startStr, endStr) {
+      // Por defecto leemos desde hace 1 día hasta dentro de 14 días para que vea hoy, mañana y la semana
       let inicio = startStr
         ? new Date(`${startStr.substring(0, 10)}T00:00:00`)
-        : new Date(Date.now() - 7 * 86400000);
+        : new Date(Date.now() - 1 * 86400000);
       let limite = endStr
         ? new Date(`${endStr.substring(0, 10)}T23:59:59`)
-        : new Date(inicio.getTime() + (startStr ? 7 : 37) * 86400000);
+        : new Date(inicio.getTime() + (startStr ? 7 : 15) * 86400000);
 
       const resumenCalendarios = {};
 
@@ -243,7 +239,7 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
         misCalendarios.map(async (cal) => {
           const etiquetaCal = cal.primary ? `Personal (${cal.summary})` : (cal.summaryOverride || cal.summary);
           const url = `${CAL_BASE}/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${encodeURIComponent(inicio.toISOString())}&timeMax=${encodeURIComponent(limite.toISOString())}&singleEvents=true&orderBy=startTime`;
-          const resEv = await gFetch(url, googleToken);
+          const resEv = await gFetch(url);
           const eventos = resEv.items || [];
 
           resumenCalendarios[etiquetaCal] = eventos.map(ev => {
@@ -268,11 +264,9 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
       return resumenCalendarios;
     }
 
-    // ==========================================
     // 1. GESTIÓN DE CALENDARIOS
-    // ==========================================
     if (accion === 'crear_calendario') {
-      const nuevo = await gFetch(`${CAL_BASE}/calendars`, googleToken, {
+      const nuevo = await gFetch(`${CAL_BASE}/calendars`, {
         method: 'POST',
         body: JSON.stringify({
           summary: (args.title || '').trim(),
@@ -280,7 +274,7 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
           timeZone: 'Europe/Madrid'
         })
       });
-      return { ok: true, mensaje: `Calendario "${nuevo.summary}" creado` };
+      return { ok: true, _newGoogleAccessToken: tokenRenovadoEnEstaLlamada, mensaje: `Calendario "${nuevo.summary}" creado` };
     }
 
     if (accion === 'editar_calendario') {
@@ -289,25 +283,23 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
       const body = {};
       if (args.new_title) body.summary = args.new_title;
       if (args.description !== undefined) body.description = args.description;
-      await gFetch(`${CAL_BASE}/calendars/${encodeURIComponent(cal.id)}`, googleToken, {
+      await gFetch(`${CAL_BASE}/calendars/${encodeURIComponent(cal.id)}`, {
         method: 'PATCH',
         body: JSON.stringify(body)
       });
-      return { ok: true, mensaje: 'Calendario actualizado' };
+      return { ok: true, _newGoogleAccessToken: tokenRenovadoEnEstaLlamada, mensaje: 'Calendario actualizado' };
     }
 
     if (accion === 'borrar_calendario') {
       const cal = buscarCalendarioPorNombre(args.title);
       if (!cal || cal.primary) return { ok: false, error: 'No se encontró o es el calendario principal' };
-      await gFetch(`${CAL_BASE}/calendars/${encodeURIComponent(cal.id)}`, googleToken, {
+      await gFetch(`${CAL_BASE}/calendars/${encodeURIComponent(cal.id)}`, {
         method: 'DELETE'
       });
-      return { ok: true, mensaje: 'Calendario eliminado' };
+      return { ok: true, _newGoogleAccessToken: tokenRenovadoEnEstaLlamada, mensaje: 'Calendario eliminado' };
     }
 
-    // ==========================================
     // 2. EVENTOS DE CALENDARIO
-    // ==========================================
     if (accion === 'crear_evento') {
       const calDestino = buscarCalendarioPorNombre(args.calendar_name);
       const esTodoElDia = args.start_time && !String(args.start_time).includes('T');
@@ -319,7 +311,6 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
       } else if (args.end_time) {
         endObj = formatearFechaHoraEvento(args.end_time, false);
       } else {
-        // Por defecto +1 hora si no especifica hora de fin
         const [fechaP, horaP] = String(args.start_time).split('T');
         const [hh, mm] = (horaP || '09:00').split(':').map(Number);
         const hFin = String((hh + 1) % 24).padStart(2, '0');
@@ -350,13 +341,14 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
         }
       }
 
-      await gFetch(`${CAL_BASE}/calendars/${encodeURIComponent(calDestino.id)}/events`, googleToken, {
+      await gFetch(`${CAL_BASE}/calendars/${encodeURIComponent(calDestino.id)}/events`, {
         method: 'POST',
         body: JSON.stringify(payload)
       });
 
       return {
         ok: true,
+        _newGoogleAccessToken: tokenRenovadoEnEstaLlamada,
         mensaje: `Evento "${payload.summary}" creado en el calendario "${calDestino.summaryOverride || calDestino.summary}"`
       };
     }
@@ -399,17 +391,14 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
 
       const actualizado = await gFetch(
         `${CAL_BASE}/calendars/${encodeURIComponent(calActual.id)}/events/${encodeURIComponent(ev.id)}`,
-        googleToken,
         { method: 'PATCH', body: JSON.stringify(patch) }
       );
 
-      // Si pide moverlo a otro calendario
       if (args.calendar_name) {
         const nuevoCal = buscarCalendarioPorNombre(args.calendar_name);
         if (nuevoCal && nuevoCal.id !== calActual.id) {
           await gFetch(
             `${CAL_BASE}/calendars/${encodeURIComponent(calActual.id)}/events/${encodeURIComponent(ev.id)}/move?destination=${encodeURIComponent(nuevoCal.id)}`,
-            googleToken,
             { method: 'POST' }
           );
           calActual = nuevoCal;
@@ -418,6 +407,7 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
 
       return {
         ok: true,
+        _newGoogleAccessToken: tokenRenovadoEnEstaLlamada,
         mensaje: `Evento "${actualizado.summary}" actualizado en "${calActual.summaryOverride || calActual.summary}"`
       };
     }
@@ -430,56 +420,54 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
 
       await gFetch(
         `${CAL_BASE}/calendars/${encodeURIComponent(cal.id)}/events/${encodeURIComponent(targetId)}`,
-        googleToken,
         { method: 'DELETE' }
       );
-      return { ok: true, mensaje: `Evento "${ev.summary}" eliminado` };
+      return { ok: true, _newGoogleAccessToken: tokenRenovadoEnEstaLlamada, mensaje: `Evento "${ev.summary}" eliminado` };
     }
 
     if (accion === 'consultar_calendario') {
       return {
         ok: true,
+        _newGoogleAccessToken: tokenRenovadoEnEstaLlamada,
         calendarios_disponibles: misCalendarios.map(c => c.primary ? `Personal (${c.summary})` : (c.summaryOverride || c.summary)),
         eventos_por_calendario: await obtenerEventosTodosLosCalendarios(args.start_date, args.end_date)
       };
     }
 
-    // ==========================================
     // 3. GOOGLE TASKS
-    // ==========================================
     if (accion === 'crear_lista') {
-      const nueva = await gFetch(`${TASKS_BASE}/users/@me/lists`, googleToken, {
+      const nueva = await gFetch(`${TASKS_BASE}/users/@me/lists`, {
         method: 'POST',
         body: JSON.stringify({ title: (args.title || '').trim() })
       });
-      return { ok: true, mensaje: `Lista "${nueva.title}" creada` };
+      return { ok: true, _newGoogleAccessToken: tokenRenovadoEnEstaLlamada, mensaje: `Lista "${nueva.title}" creada` };
     }
 
     if (accion === 'editar_lista') {
       const lista = buscarListaPorNombre(args.search_title);
       if (!lista) return { ok: false, error: 'Lista no encontrada' };
-      await gFetch(`${TASKS_BASE}/users/@me/lists/${encodeURIComponent(lista.id)}`, googleToken, {
+      await gFetch(`${TASKS_BASE}/users/@me/lists/${encodeURIComponent(lista.id)}`, {
         method: 'PATCH',
         body: JSON.stringify({ title: (args.new_title || '').trim() })
       });
-      return { ok: true, mensaje: 'Lista actualizada' };
+      return { ok: true, _newGoogleAccessToken: tokenRenovadoEnEstaLlamada, mensaje: 'Lista actualizada' };
     }
 
     if (accion === 'borrar_lista') {
       const lista = buscarListaPorNombre(args.title);
       if (!lista) return { ok: false, error: 'Lista no encontrada' };
-      await gFetch(`${TASKS_BASE}/users/@me/lists/${encodeURIComponent(lista.id)}`, googleToken, {
+      await gFetch(`${TASKS_BASE}/users/@me/lists/${encodeURIComponent(lista.id)}`, {
         method: 'DELETE'
       });
-      return { ok: true, mensaje: 'Lista eliminada' };
+      return { ok: true, _newGoogleAccessToken: tokenRenovadoEnEstaLlamada, mensaje: 'Lista eliminada' };
     }
 
     if (accion === 'limpiar_completadas') {
       const lista = buscarListaPorNombre(args.category) || todasLasListas[0];
-      await gFetch(`${TASKS_BASE}/lists/${encodeURIComponent(lista.id)}/clear`, googleToken, {
+      await gFetch(`${TASKS_BASE}/lists/${encodeURIComponent(lista.id)}/clear`, {
         method: 'POST'
       });
-      return { ok: true, mensaje: 'Tareas completadas limpiadas' };
+      return { ok: true, _newGoogleAccessToken: tokenRenovadoEnEstaLlamada, mensaje: 'Tareas completadas limpiadas' };
     }
 
     if (accion === 'crear_tarea') {
@@ -508,12 +496,12 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
       const queryParams = parentId ? `?parent=${encodeURIComponent(parentId)}` : '';
       const creada = await gFetch(
         `${TASKS_BASE}/lists/${encodeURIComponent(listaDestino.id)}/tasks${queryParams}`,
-        googleToken,
         { method: 'POST', body: JSON.stringify(body) }
       );
 
       return {
         ok: true,
+        _newGoogleAccessToken: tokenRenovadoEnEstaLlamada,
         mensaje: `Tarea "${creada.title}" creada en la lista "${listaDestino.title}"`,
         detalles_guardados: body.notes,
         id: creada.id
@@ -542,15 +530,16 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
         if (nuevaLista.id !== listaId) {
           const payload = { title: nuevoTitulo, notes: nuevasNotas, status: nuevoEstado };
           if (nuevaFecha) payload.due = nuevaFecha;
-          await gFetch(`${TASKS_BASE}/lists/${encodeURIComponent(nuevaLista.id)}/tasks`, googleToken, {
+          await gFetch(`${TASKS_BASE}/lists/${encodeURIComponent(nuevaLista.id)}/tasks`, {
             method: 'POST',
             body: JSON.stringify(payload)
           });
-          await gFetch(`${TASKS_BASE}/lists/${encodeURIComponent(listaId)}/tasks/${encodeURIComponent(t.id)}`, googleToken, {
+          await gFetch(`${TASKS_BASE}/lists/${encodeURIComponent(listaId)}/tasks/${encodeURIComponent(t.id)}`, {
             method: 'DELETE'
           });
           return {
             ok: true,
+            _newGoogleAccessToken: tokenRenovadoEnEstaLlamada,
             mensaje: `Tarea "${nuevoTitulo}" movida de "${listaNombre}" a "${nuevaLista.title}"`
           };
         }
@@ -564,12 +553,12 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
       };
       if (nuevaFecha) patch.due = nuevaFecha;
 
-      await gFetch(`${TASKS_BASE}/lists/${encodeURIComponent(listaId)}/tasks/${encodeURIComponent(t.id)}`, googleToken, {
+      await gFetch(`${TASKS_BASE}/lists/${encodeURIComponent(listaId)}/tasks/${encodeURIComponent(t.id)}`, {
         method: 'PATCH',
         body: JSON.stringify(patch)
       });
 
-      return { ok: true, mensaje: `Tarea "${nuevoTitulo}" actualizada en "${listaNombre}"` };
+      return { ok: true, _newGoogleAccessToken: tokenRenovadoEnEstaLlamada, mensaje: `Tarea "${nuevoTitulo}" actualizada en "${listaNombre}"` };
     }
 
     if (accion === 'borrar_tarea') {
@@ -577,10 +566,9 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
       if (!encontrada) return { ok: false, error: 'Tarea no encontrada' };
       await gFetch(
         `${TASKS_BASE}/lists/${encodeURIComponent(encontrada.listaId)}/tasks/${encodeURIComponent(encontrada.tarea.id)}`,
-        googleToken,
         { method: 'DELETE' }
       );
-      return { ok: true, mensaje: 'Tarea eliminada' };
+      return { ok: true, _newGoogleAccessToken: tokenRenovadoEnEstaLlamada, mensaje: 'Tarea eliminada' };
     }
 
     if (accion === 'leer_tareas') {
@@ -588,10 +576,9 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
       await Promise.all(
         todasLasListas.map(async (lista) => {
           const resT = await gFetch(
-            `${TASKS_BASE}/lists/${encodeURIComponent(lista.id)}/tasks?showCompleted=true&showHidden=true&maxResults=100`,
-            googleToken
+            `${TASKS_BASE}/lists/${encodeURIComponent(lista.id)}/tasks?showCompleted=true&showHidden=true&maxResults=100`
           );
-          const tareasLista = resT.items || [];
+          const tareasLista = (resT.items || []).filter(t => t.title && t.title.trim());
           resumenPorCajon[lista.title] = tareasLista.map(t => {
             const estado = t.status === 'completed' ? '[HECHA]' : '[PENDIENTE]';
             const esSubtarea = t.parent ? '  ↳ (Subtarea) ' : '';
@@ -602,25 +589,24 @@ export async function ejecutarAccionGoogle(accion, args, googleTokenInicial, use
         })
       );
 
+      const eventosCalendario = await obtenerEventosTodosLosCalendarios();
+
       return {
         ok: true,
+        _newGoogleAccessToken: tokenRenovadoEnEstaLlamada,
         listas_disponibles: todasLasListas.map(l => l.title),
         calendarios_disponibles: misCalendarios.map(c => c.primary ? `Personal (${c.summary})` : (c.summaryOverride || c.summary)),
         tareas: resumenPorCajon,
-        eventos_calendario: await obtenerEventosTodosLosCalendarios()
+        eventos: eventosCalendario
       };
     }
 
     return { ok: false, error: 'Acción no reconocida' };
   } catch (err) {
     console.error(`❌ Error Google API (${accion}):`, err.message);
-    if (err.message === 'GOOGLE_TOKEN_EXPIRED') {
-      return {
-        ok: false,
-        google_expired: true,
-        error: 'GOOGLE_TOKEN_EXPIRED: El token de Google ha caducado (dura 1h).'
-      };
-    }
-    return { ok: false, error: err.message };
+    return {
+      ok: false,
+      error: `Error de conexión con Google (${err.message}). Cierra sesión y vuelve a entrar con Google.`
+    };
   }
 }
