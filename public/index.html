@@ -1463,7 +1463,7 @@
                 source.connect(analyserNode);
 
                 audioChunks = [];
-                const recOptions = { audioBitsPerSecond: 64000 };
+                const recOptions = {};
                 if (window.MediaRecorder) {
                     if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
                         recOptions.mimeType = 'audio/webm;codecs=opus';
@@ -1476,7 +1476,8 @@
                     mediaRecorder.ondataavailable = (e) => {
                         if (e.data && e.data.size > 0) audioChunks.push(e.data);
                     };
-                    mediaRecorder.start(200);
+                    // Sin fragmentar en trozos de 200ms para que el contenedor de audio quede 100% íntegro
+                    mediaRecorder.start();
                 }
 
                 isRecording = true;
@@ -1543,7 +1544,11 @@
                     const b = new Blob(audioChunks, { type: mime });
                     resolve(b);
                 };
-                try { mediaRecorder.stop(); } catch (e) { resolve(null); }
+                try {
+                    mediaRecorder.stop();
+                } catch (e) {
+                    resolve(null);
+                }
             });
 
             if (micStream) {
@@ -1578,6 +1583,14 @@
                 });
 
                 const data = await res.json().catch(() => ({}));
+
+                if (!res.ok || data.error) {
+                    console.error('Error del servidor en transcripción:', data.error);
+                    chatBox.innerHTML += `<div class="message assistant" style="color: var(--nothing-red);">Error transcribiendo audio: ${data.error || res.status}</div>`;
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                    return '';
+                }
+
                 const nuevoTexto = (data.transcript || '').trim();
 
                 if (nuevoTexto) {

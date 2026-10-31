@@ -2,6 +2,9 @@ import { supabase, ai } from '../src/config/clients.js';
 import { assistantTools } from '../src/tools/declarations.js';
 import { ejecutarHerramienta } from '../src/services/executor.js';
 
+// Modelo único fijo para todo el servidor (chat y voz)
+const MODELO_GEMINI = 'gemini-3.5-flash-lite';
+
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     return res.status(200).json({
@@ -67,40 +70,28 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
 
-      // 3. Transcripción de voz con soporte multimodal real (gemini-2.5-flash)
+      // 3. Transcripción de voz usando el mismo modelo fijo que ya funciona
       if (body.mode === 'transcribe' && body.audioBase64) {
         const cleanMime = (body.mimeType || 'audio/webm').split(';')[0];
-        const promptAudio = 'Transcribe exactamente en español de España lo que dice este audio. Contexto: el usuario habla con su asistente Jarvis sobre tareas, qué tenía que hacer ayer/hoy/mañana, calendario, universidad, entrenamientos y comidas. No inventes palabras sueltas sin sentido. Pon comas, puntos y signos de interrogación (¿?) según la entonación. Devuelve ÚNICAMENTE la transcripción limpia, sin comillas ni texto adicional. Si hay silencio, devuelve cadena vacía.';
-
-        let transResponse;
-        try {
-          transResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  { inlineData: { mimeType: cleanMime, data: body.audioBase64 } },
-                  { text: promptAudio }
-                ]
-              }
-            ]
-          });
-        } catch (errModel) {
-          // Fallback por si acaso
-          transResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-lite',
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  { inlineData: { mimeType: cleanMime, data: body.audioBase64 } },
-                  { text: promptAudio }
-                ]
-              }
-            ]
-          });
-        }
+        const transResponse = await ai.models.generateContent({
+          model: MODELO_GEMINI,
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: cleanMime,
+                    data: body.audioBase64
+                  }
+                },
+                {
+                  text: 'Transcribe exactamente en español lo que dice este audio. Pon puntuación perfecta y natural: comas, puntos y signos de interrogación (¿?) o exclamación (¡!) según la entonación y el sentido de la frase. NO respondas a la pregunta ni añadas texto extra ni comillas: devuelve ÚNICAMENTE la transcripción limpia. Si solo hay silencio o ruido sin palabras, devuelve exactamente una cadena vacía.'
+                }
+              ]
+            }
+          ]
+        });
 
         return res.status(200).json({
           transcript: (transResponse.text || '').trim()
@@ -157,10 +148,8 @@ export default async function handler(req, res) {
         { role: 'user', parts: [{ text: message }] }
       ];
 
-      const MODEL_NAME = 'gemini-2.5-flash';
-
       let response = await ai.models.generateContent({
-        model: MODEL_NAME,
+        model: MODELO_GEMINI,
         contents,
         config: { systemInstruction, tools: assistantTools }
       });
@@ -200,7 +189,7 @@ export default async function handler(req, res) {
         contents.push({ role: 'user', parts: functionResponseParts });
 
         response = await ai.models.generateContent({
-          model: MODEL_NAME,
+          model: MODELO_GEMINI,
           contents,
           config: { systemInstruction, tools: assistantTools }
         });
