@@ -167,7 +167,7 @@ export const assistantTools = [
       },
       {
         name: 'editar_tarea',
-        description: 'Modifica una tarea existente en Google Tasks: cambia título, añade o cambia su descripción (description), cambia fecha (due_date), la mueve a otra lista (new_category) o cambia su estado (completed). Puedes llamar a esta función múltiples veces en paralelo si el usuario pide reorganizar o cambiar la fecha de varias tareas a la vez.',
+        description: 'Modifica una tarea existente en Google Tasks: cambia título, añade o cambia su descripción (description), cambia fecha (due_date), la mueve a otra lista (new_category) o cambia su estado (completed)[cite: 4]. Cuando el usuario pida reorganizar o repartir varias tareas, llama a esta herramienta tantas veces seguidas como sea necesario en el mismo turno de forma autónoma sin pedir confirmación.',
         parameters: {
           type: Type.OBJECT,
           properties: {
